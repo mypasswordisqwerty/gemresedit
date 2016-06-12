@@ -8,7 +8,7 @@ module Resedit
         attr_accessor :gridColor, :charColor
 
         # charWidth, charHeight, characters count
-        def initialize(width, height, count)
+        def initialize(width, height, count=256)
             @width, @height, @count = width, height, count
             @gridColor = 0xFFEEEEEE
             @charColor = 0xFF000000

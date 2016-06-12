@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    Resedit (1.0.0)
+    resedit (1.0.0)
 
 GEM
   remote: https://rubygems.org/
@@ -12,8 +12,8 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  Resedit!
   chunky_png
+  resedit!
 
 BUNDLED WITH
    1.11.2
