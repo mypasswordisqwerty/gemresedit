@@ -27,7 +27,9 @@ module Resedit
             addParam('command', 'help on specific command', '')
         end
         def job(params)
-            log('help')
+            App.get().commands.each{|c|
+                puts c.names[0]
+            }
         end
     end
 
@@ -48,7 +50,7 @@ module Resedit
             when 'error','e'
                 :error
             end
-            raise 'unknown level #{val}'
+            raise "unknown level #{val}"
         end
 
 
@@ -79,7 +81,7 @@ module Resedit
                 script += [App.get().parseCommand(line.chomp())]
             }
             script.each{|cmd|
-                cmd[0].run(cmd[1])
+                cmd[0].run(cmd[1]) if cmd
             }
         end
     end

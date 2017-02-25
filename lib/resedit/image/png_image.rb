@@ -8,18 +8,18 @@ module Resedit
         def initialize
             @img = nil
         end
-        
+
         def getPixel(x, y)
             col = @img[x, y]
-            return (col<<24) | (col>>8)
+            return (col<<24 & 0xFFFFFFFF) | (col>>8)
         end
-        
+
         def setPixel(x, y, color)
-            @img[x, y] =  (color<<8) | (color>>24)
+            @img[x, y] =  ((color<<8 & 0xFFFFFFFF) | (color>>24))
         end
 
         def create(width, height, format)
-            @width, @height = width, height            
+            @width, @height = width, height
             @img = ChunkyPNG::Image.new(width, height, ChunkyPNG::Color::TRANSPARENT)
         end
 
@@ -28,7 +28,7 @@ module Resedit
             @img.save(filename)
         end
 
-        def load(filename) 
+        def load(filename)
             @img = ChunkyPNG::Image.from_file(filename)
             @width = @img.width
             @height = @img.height

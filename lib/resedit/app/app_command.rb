@@ -1,10 +1,10 @@
 module Resedit
 
     class AppCommand
-        attr_reader :names, :type
+        attr_reader :names, :type, :params
         def initialize(names, type=:std)
             @names, @continue = names, type
-            @names = [@names] if not @names.kind_of?(Array) 
+            @names = [@names] if not @names.kind_of?(Array)
             @opts = {}
             @params = []
             @ohash = {}
@@ -40,10 +40,10 @@ module Resedit
                         opt = @opts[p[2..-1]]
                     else
                         opt = @opts[@ohash[p[1..-1]]] || @opts[p[1..-1]]
-                    end    
+                    end
                     raise "Unknown option #{p}" if !opt
                     if opt[:param]!=false
-                        raise 'No option #{p} value' if idx>=params.length
+                        raise "No option #{p} value" if idx>=params.length
                         val = params[idx]
                         idx+=1
                     end
@@ -60,7 +60,7 @@ module Resedit
                 end
             end
             @params.each{|p|
-                raise 'Expected parameter #{p[:name]}' if res[p[:name]]==nil
+                raise "Expected parameter #{p[:name]}" if res[p[:name]]==nil
             }
             return res
         end

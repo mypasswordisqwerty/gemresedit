@@ -5,7 +5,7 @@ module Resedit
 
     class Font
         attr_reader :count, :width, :height
-        attr_accessor :gridColor, :charColor
+        attr_accessor :gridColor, :charColor, :userData, :widthColor
 
         # charWidth, charHeight, characters count
         def initialize(width, height, count=256)
@@ -13,15 +13,30 @@ module Resedit
             @gridColor = 0xFFEEEEEE
             @charColor = 0xFF000000
             @bgColor = 0xFFFFFFFF
+            @widthColor = 0xFFFF0000
             @chars = {}
+            @userData = nil
         end
 
-        def setChar(id, data)
-            @chars[id] = FontChar.new(@width, @height, id, data)
+        def setChar(id, data, width)
+            @chars[id] = FontChar.new(@width, @height, id, data, width)
         end
 
         def getChar(id)
             @chars[id].data if @chars[id]
+        end
+
+        def minChar
+            return @chars.keys().min
+        end
+
+        def maxChar
+            return @chars.keys().max
+        end
+
+        def charWidth(id)
+            return nil if !@chars[id]
+            return @chars[id].realWidth ? @chars[id].realWidth : @width
         end
 
         def save(filename)
@@ -41,7 +56,7 @@ module Resedit
                 y = idx/16
                 x += 1+x*@width
                 y += 1+y*@height
-                c.draw(img, @charColor, x, y)
+                c.draw(img, @charColor, x, y, @widthColor)
             }
             img.save(filename)
         end
@@ -56,7 +71,7 @@ module Resedit
                 x += 1+x*@width
                 y += 1+y*@height
                 c = FontChar.new(width,height,idx)
-                c.scan(img, @charColor, x, y)
+                c.scan(img, @charColor, x, y, @widthColor)
                 @chars[c.index] = c if c.data
             end
         end

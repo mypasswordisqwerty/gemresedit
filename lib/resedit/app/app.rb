@@ -2,7 +2,7 @@ require 'resedit/app/std_commands'
 require 'logger'
 
 module Resedit
-    
+
     class App
         attr_reader :name, :version, :commands, :logger, :copyright, :cmdInterface
 
@@ -17,7 +17,7 @@ module Resedit
             @logger = Logger.new(STDOUT)
             @logger.level= Logger::INFO
             logger.formatter = proc { |severity, datetime, progname, msg|
-                severity+": "+msg
+                msg
             }
             @commands = commands
             @commands+=[HelpCommand.new(), VersionCommand.new(), ExitCommand.new(), EchoCommand.new(), ScriptCommand.new()]
@@ -50,13 +50,14 @@ module Resedit
             string.split().each {|w|
                 if w[0]=='-' && w.length()>2 && w[1]!='-'
                     w[1..-1].each_char{|c|
-                        cmd+=['-#{c}']
+                        cmd+=["-#{c}"]
                     }
                 else
                     cmd+=[w]
                 end
             }
             logd("parsing command #{cmd.to_s}")
+            return nil if cmd.length()==0 || cmd[0][0]=='#'
             c = @cmds[cmd[0]]
             raise "Unknown command: #{cmd[0]}" if !c
             res=[]
