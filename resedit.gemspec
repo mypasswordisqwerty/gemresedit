@@ -8,4 +8,6 @@ Gem::Specification.new do |s|
   s.summary     = "OG resource proc library!"
   s.authors     = ["bjfn"]
   s.files       = Dir['lib/**/*.rb']
+
+  s.add_dependency "chunky_png", "1.3.5"
 end
