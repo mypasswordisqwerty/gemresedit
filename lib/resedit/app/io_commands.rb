@@ -24,11 +24,16 @@ module Resedit
 
 
     class ConvertCommand < AppCommand
-        def initialize(name, ext)
+
+        attr_reader :fname
+
+
+        def initialize(name, fname)
             super([name])
             addParam('action','import/export action')
             addParam('file','file to import/export')
             addOption('output','o',nil,'converted file name')
+            @fname=fname
         end
 
 
@@ -43,6 +48,7 @@ module Resedit
         end
 
         def job(params)
+            @params=params
             @resname=params['file']
             fname = getOutName()
             fname = params['output'] if params['output']

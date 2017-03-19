@@ -18,7 +18,8 @@ module Resedit
             @userData = nil
         end
 
-        def setChar(id, data, width)
+        def setChar(id, data, width=nil)
+            width=@width if !width
             @chars[id] = FontChar.new(@width, @height, id, data, width)
         end
 
