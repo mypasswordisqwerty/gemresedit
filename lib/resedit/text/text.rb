@@ -1,4 +1,4 @@
-require 'resedit/text/text_format'
+require 'resedit/text/format_text'
 require 'resedit/text/format_xml'
 require 'resedit/text/escaper'
 
@@ -33,14 +33,16 @@ module Resedit
         end
 
         def addLine(line, meta)
-            line = line.force_encoding(@encoding) if @encoding
+            line.encode!("utf-8",@encoding) if @encoding
+            line.force_encoding('utf-8')
             @lines += [line]
             @meta[@lines.length-1]=meta
         end
 
         def getLine(id)
-            line = line.encode(@encoding) if @encoding
-            return @lines[id]
+            line = @lines[id]
+            line.encode!(@encoding) if @encoding
+            return line
         end
 
         def save(filename)
@@ -54,8 +56,9 @@ module Resedit
             @formatter.saveLines(filename, nl, @meta)
         end
 
-        def load(filename)
+        def load(filename, count=nil)
             @lines = @formatter.loadLines(filename)
+            raise "Wrong lines count: "+filename if count && count!=@lines.length
             if @escaper
                 nl=[]
                 @lines.each {|l|

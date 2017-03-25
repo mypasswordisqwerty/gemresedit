@@ -22,14 +22,16 @@ module Resedit
         def saveLines(fname, lines, meta)
             open(fname+".txt", "w:"+@encoding) {|f|
                 lines.each {|l|
-                    f.write(l+"\r\n")
+                    l.force_encoding('utf-8')
+                    f.write(l)
+                    f.write("\r\n")
                 }
             }
         end
 
         def loadLines(fname)
             lns=[]
-            open(fname+".txt", "r:"+@encoding).each_line {|line|
+            open(fname+".txt", "r:"+@encoding+":utf-8").each_line {|line|
                 lns += [line.chomp]
             }
             lns=lns[0..-2] if lns.last == ""

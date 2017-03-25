@@ -36,13 +36,18 @@ module Resedit
                 idx+=1
                 if p[0]=='-'
                     val = true
+                    s=p.split('=')
+                    if s.length==2
+                        val=s[1]
+                        p=s[0]
+                    end
                     if (p[1]=='-')
                         opt = @opts[p[2..-1]]
                     else
                         opt = @opts[@ohash[p[1..-1]]] || @opts[p[1..-1]]
                     end
                     raise "Unknown option #{p}" if !opt
-                    if opt[:param]!=false
+                    if opt[:param]!=false and val==true
                         raise "No option #{p} value" if idx>=params.length
                         val = params[idx]
                         idx+=1

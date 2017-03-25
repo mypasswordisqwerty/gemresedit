@@ -15,8 +15,8 @@ module Resedit
             logd("importing text #{inname} to #{@resname}")
             back = backup()
             File.open(back,"rb"){|file|
-                @font = mkfont(file)
-                @font.load(inname+'.png')
+                @text = mktext(file, @params['format'], @params['encoding'])
+                @text.load(inname, linesCount())
                 StringIO.open("","w+b"){|stream|
                     pack(file, stream)
                     stream.seek(0)
@@ -38,8 +38,13 @@ module Resedit
             @text.save(outname)
         end
 
+
         def mktext(file, format, encoding)
             raise "Not implemented."
+        end
+
+        def linesCount(file)
+            raise "Not implemented"
         end
 
         def pack(file, outstream)
