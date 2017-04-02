@@ -1,10 +1,13 @@
 require 'resedit/app/std_commands'
+require 'resedit/app/mz_command'
 require 'logger'
+require 'readline'
 
 module Resedit
 
     class App
-        attr_reader :name, :version, :commands, :logger, :copyright, :cmdInterface
+        HIST_FILE = "~/.resedithist"
+        attr_reader :name, :version, :commands, :logger, :copyright, :cmdInterface, :shell
 
         def self.get()
             return @@instance
@@ -19,8 +22,11 @@ module Resedit
             logger.formatter = proc { |severity, datetime, progname, msg|
                 msg
             }
-            @commands = commands
-            @commands+=[HelpCommand.new(), VersionCommand.new(), ExitCommand.new(), EchoCommand.new(), ScriptCommand.new()]
+            @shell = nil;
+            @commands = []
+            @commands += commands if commands
+            @commands += [HelpCommand.new(), VersionCommand.new(), ExitCommand.new(), EchoCommand.new(),
+                        ScriptCommand.new(), MZCommand.new(), ShellCommand.new()]
             @cmds={}
             @commands.each{|c|
                 c.names.each{|n|
@@ -42,7 +48,26 @@ module Resedit
 
 
         def quit
+            if @shell
+                @shell=nil
+                return
+            end
+            begin
+                strt = Readline::HISTORY.length-64
+                open(File.expand_path(HIST_FILE),"w"){|f|
+                    Readline::HISTORY.each.with_index{|ln,i|
+                        f.write(ln+"\n") if i > strt
+                    }
+                }
+            rescue
+            end
             @stop=true
+        end
+
+        def setShell(sname)
+            sname=nil if sname.length==0
+            raise "Unknown shell: "+sname if sname && !@cmds[sname]
+            @shell = sname
         end
 
         def parseCommand(string)
@@ -67,6 +92,12 @@ module Resedit
 
 
         def runCommand(string)
+            if @shell
+                cmd=string.split()[0]
+                if !@cmds[cmd] || !['Resedit::ExitCommand','Resedit::ShellCommand'].include?(@cmds[cmd].class.name)
+                    string = @shell+" "+string
+                end
+            end
             logd("running command %s", string)
             cmd = parseCommand(string)
             cmd[0].run(cmd[1])
@@ -75,14 +106,23 @@ module Resedit
 
         def commandInterface()
             runCommand('version')
+            begin
+                open(File.expand_path(HIST_FILE),"r").each_line {|ln|
+                    ln.chomp!
+                    Readline::HISTORY.push(ln) if ln.length>0
+                }
+            rescue
+            end
             @stop=false
             while(!@stop)
-                print "#{@name}> "
+                sh=@shell ? " "+@shell : ""
                 begin
-                    runCommand(gets.chomp())
+                    cmd = Readline.readline("#{@name}#{sh}>", true)
+                    Readline::HISTORY.pop if cmd=='' || (Readline::HISTORY.length>1 && cmd==Readline::HISTORY[-2])
+                    runCommand(cmd)
                 rescue StandardError => e
                     puts "Error: #{e.to_s()}"
-                    puts e.backtrace
+                    puts e.backtrace if App::get().logger.level == Logger::DEBUG
                 end
             end
             return 0

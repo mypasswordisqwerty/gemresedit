@@ -87,4 +87,15 @@ module Resedit
     end
 
 
+    class ShellCommand < AppCommand
+        def initialize
+            super(['shell'])
+            addParam('shell', 'script file', "")
+        end
+        def job(params)
+            App::get().setShell(params['shell'])
+        end
+    end
+
+
 end

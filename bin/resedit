@@ -1,0 +1,11 @@
+#!/usr/bin/env ruby
+
+require 'resedit'
+
+class App < Resedit::App
+    def initialize()
+        super('resedit',Resedit::VERSION, nil, true, "by bjfn (c) old-games.ru, 2017")
+    end
+end
+
+App.new().run()
