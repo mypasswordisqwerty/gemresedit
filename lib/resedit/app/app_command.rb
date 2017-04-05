@@ -9,7 +9,10 @@ module Resedit
             @params = []
             @ohash = {}
             addOption('verbose','v',false, 'verbose output')
+            addOption('unverbose',nil,false, 'unverbose output')
             addOption('quiet','q',false, 'supress output')
+            addOption('color',nil,false, 'set colored output')
+            addOption('uncolor',nil,false, 'unset colored output')
         end
 
         def addParam(name, descr, default = nil, type=:std)
@@ -72,7 +75,10 @@ module Resedit
 
         def run(params)
             App::get().logger.level = Logger::DEBUG if params['verbose']
+            App::get().logger.level = Logger::INFO if params['unverbose']
             App::get().logger.level = Logger::ERROR if params['quiet']
+            App::get().col.on = true if params['color']
+            App::get().col.on = false if params['uncolor']
             job(params)
         end
 

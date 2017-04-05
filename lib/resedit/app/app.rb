@@ -1,5 +1,6 @@
 require 'resedit/app/std_commands'
 require 'resedit/app/mz_command'
+require 'resedit/app/colorizer'
 require 'logger'
 require 'readline'
 
@@ -7,7 +8,7 @@ module Resedit
 
     class App
         HIST_FILE = "~/.resedithist"
-        attr_reader :name, :version, :commands, :logger, :copyright, :cmdInterface, :shell
+        attr_reader :name, :version, :commands, :logger, :copyright, :cmdInterface, :shell, :col
 
         def self.get()
             return @@instance
@@ -25,7 +26,7 @@ module Resedit
             @shell = nil;
             @commands = []
             @commands += commands if commands
-            @commands += [HelpCommand.new(), VersionCommand.new(), ExitCommand.new(), EchoCommand.new(),
+            @commands += [HelpCommand.new(), VersionCommand.new(), ExitCommand.new(),
                         ScriptCommand.new(), MZCommand.new(), ShellCommand.new()]
             @cmds={}
             @commands.each{|c|
@@ -33,25 +34,22 @@ module Resedit
                     @cmds[n] = c;
                 }
             }
+            @col = Colorizer.new(false)
         end
 
 
         def logd(fmt, *args)
-            @logger.debug(sprintf(fmt+"\n",*args))
+            @logger.debug(@col.gray(sprintf(fmt+"\n",*args)))
         end
         def log(fmt, *args)
             @logger.info(sprintf(fmt+"\n",*args))
         end
         def loge(fmt, *args)
-            @logger.error(sprintf(fmt+"\n",*args))
+            @logger.error(@col.red(sprintf(fmt+"\n",*args)))
         end
 
 
         def quit
-            if @shell
-                @shell=nil
-                return
-            end
             begin
                 strt = Readline::HISTORY.length-64
                 open(File.expand_path(HIST_FILE),"w"){|f|
@@ -105,7 +103,7 @@ module Resedit
 
 
         def commandInterface()
-            runCommand('version')
+            @cmds['version'].run('')
             begin
                 open(File.expand_path(HIST_FILE),"r").each_line {|ln|
                     ln.chomp!
@@ -121,7 +119,7 @@ module Resedit
                     Readline::HISTORY.pop if cmd=='' || (Readline::HISTORY.length>1 && cmd==Readline::HISTORY[-2])
                     runCommand(cmd)
                 rescue StandardError => e
-                    puts "Error: #{e.to_s()}"
+                    puts @col.red("Error: #{e.to_s()}")
                     puts e.backtrace if App::get().logger.level == Logger::DEBUG
                 end
             end
@@ -138,6 +136,7 @@ module Resedit
                     if (@cmds[ARGV[0]])
                         #check command
                         runCommand(ARGV.join(' '))
+                        commandInterface() if @shell
                     elsif ARGV.length()==1 && File.exists?(ARGV[0])
                         #check script
                         runCommand('script '+ARGV[0])

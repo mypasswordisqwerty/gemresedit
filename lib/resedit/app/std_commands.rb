@@ -1,4 +1,5 @@
 require 'resedit/app/app_command'
+require 'resedit'
 
 module Resedit
 
@@ -7,7 +8,7 @@ module Resedit
             super(['version','--version'])
         end
         def job(params)
-            log('%s v%s %s',App::get().name, App.get().version, App::get().copyright)
+            log('%s v%s %s. Resedit v%s.',App::get().name, App.get().version, App::get().copyright, Resedit::VERSION)
         end
     end
 
@@ -30,39 +31,6 @@ module Resedit
             App.get().commands.each{|c|
                 puts c.names[0]
             }
-        end
-    end
-
-
-    class EchoCommand < AppCommand
-        def initialize
-            super('echo')
-            addParam('string', 'echo text', nil, :text)
-            addOption('level', 'l', :info, 'echo level', method(:setLevel))
-        end
-
-        def setLevel(val, opt)
-            case val
-            when 'info','i'
-                :info
-            when 'debug','d'
-                :debug
-            when 'error','e'
-                :error
-            end
-            raise "unknown level #{val}"
-        end
-
-
-        def job(params)
-            case params['level']
-            when :debug
-                logd(params['string'])
-            when :info
-                log(params['string'])
-            when :error
-                loge(params['string'])
-            end
         end
     end
 
