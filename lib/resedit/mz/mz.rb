@@ -55,6 +55,7 @@ module Resedit
                 ofs -= hsz
                 ofs = 0 if ofs < 0
             end
+            wr.setSegments(@header.segments)
             @body.hex(wr, ofs, size, how) if size > 0
             wr.finish()
         end

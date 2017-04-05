@@ -4,7 +4,7 @@ module Resedit
 
     class HexWriter
 
-        attr_accessor :written, :segments
+        attr_accessor :written
 
         def initialize(addr)
             @written = 0
@@ -20,8 +20,19 @@ module Resedit
             @segments = nil
         end
 
+        def setSegments(segments)
+            @segments = segments.sort.reverse
+        end
+
         def addrFormat()
-            res = sprintf("%8.8X | ", @addr)
+            add = ''
+            if @segments
+                seg = @addr >> 4
+                min = @segments.find{|e| e <= seg}
+                min = 0 if !min
+                add = sprintf(" %4.4X:%4.4X", min, @addr-(min << 4))
+            end
+            res = sprintf("%8.8X%s | ", @addr, add)
             @addr += @charsInLine
             return res
         end

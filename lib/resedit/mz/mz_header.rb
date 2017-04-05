@@ -90,12 +90,9 @@ module Resedit
         def seg2Linear(s,a=0) (s << 4) + a end
 
         def seg4Linear(linear)
-            min = 0
             linear >>= 4
-            @segments.each{|s|
-                min = s if s > min && s < linear
-            }
-            return min
+            min = @segments.sort.reverse.find{|e| e < linear}
+            return min ? min : 0
         end
 
         def linear2seg(linear, inSegments=nil)
