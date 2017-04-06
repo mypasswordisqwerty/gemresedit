@@ -6,6 +6,7 @@ require 'resedit/mz/mzenv'
 module Resedit
 
     class MZ
+        ZM = 0x4D5A
 
         attr_reader :fname, :path, :name, :fsize
         attr_reader :header, :body
@@ -19,25 +20,40 @@ module Resedit
                 @header = MZHeader.new(self, f, fsize)
                 hsz = @header.headerSize()
                 @body = MZBody.new(self, f, @header.fileSize() - hsz)
+                save = f.read(2)
+                zm = save ? save.unpack('v')[0] : nil
+                if zm == ZM
+                    @header.loadChanges(f)
+                    @body.loadChanges(f)
+                    log("Change info loaded.")
+                end
             }
             @fname = File.basename(@path)
             @name = File.basename(@path, ".*")
             hi = @header.info()
             env().set(:entry, hi[:CS].to_s+":"+hi[:IP].to_s)
-            env().set(:append, @body.appSeg)
+            env().set(:append, sprintf("%04X:0",@body.appSeg))
         end
+
+
+        def close()
+        end
+
 
         def log(fmt, *args)
             App::get().log(fmt, *args) if !@quiet
         end
 
+
         def env() return MZEnv.instance() end
         def s2i(str) return MZEnv.instance().s2i(str) end
+
 
         def is?(id)
             id = id.downcase
             return id == @path || id == @fname || id == @name
         end
+
 
         def print(what, how)
             puts "Header changes:" if what=="changes"
@@ -46,6 +62,7 @@ module Resedit
             res |= @body.print(what, how)
             raise "Don't know how to print: " + what if !res
         end
+
 
         def hex(ofs, size, how, disp)
             ofs = ofs ? s2i(ofs) : 0
@@ -66,10 +83,12 @@ module Resedit
             wr.finish()
         end
 
+
         def getValue(value, type)
             s = env().value2bytes(value, type)
             return s.force_encoding(Encoding::ASCII_8BIT)
         end
+
 
         def append(value,type)
             res = @body.append(getValue(value,type))
@@ -84,10 +103,12 @@ module Resedit
             log("Appended at %s",s)
         end
 
+
         def replace(value, type)
             @body.removeAppend()
             return append(value,type)
         end
+
 
         def change(ofs, value, disp, type)
             ofs = s2i(ofs)
@@ -101,16 +122,19 @@ module Resedit
             log("Change added at %08X", res)
         end
 
+
         def dasm(ofs, size, how)
             ofs = s2i(ofs ? ofs : "entry")
             size = size ? s2i(size) : 0x20
             @body.dasm(ofs, size, how)
         end
 
+
         def valueof(str, type)
             puts "value of " + str + " is:"
             p getValue(str, type).unpack("H*")
         end
+
 
         def revert(what)
             wid = env().s2i_nt(what)
@@ -121,10 +145,19 @@ module Resedit
             log("Reverted")
         end
 
-        def save()
-        end
 
-        def close()
+        def save(filename, final)
+            raise "Unknown final: " + final if final && final != "final"
+            raise "Filename expected." if !filename
+            open(filename, "wb:ascii-8bit"){|f|
+                @header.saveData(f)
+                @body.saveData(f)
+                if !final || final!='final'
+                    f.write([ZM].pack('v'))
+                    @header.saveChanges(f)
+                    @body.saveChanges(f)
+                end
+            }
         end
 
 

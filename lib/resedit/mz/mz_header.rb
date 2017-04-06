@@ -21,6 +21,7 @@ module Resedit
             readMore(file, headerSize() - HSIZE)
         end
 
+
         def mode(how)
             super(how)
             if @mode == HOW_ORIGINAL
@@ -31,10 +32,12 @@ module Resedit
             end
         end
 
+
         def change(ofs, bytes)
             super(ofs, bytes)
             @_info = nil if (ofs < HSIZE)
         end
+
 
         def loadInfo()
             v = getData(0, HSIZE).unpack('v*')
@@ -79,6 +82,7 @@ module Resedit
             return @info[:RelocTableOffset] - HSIZE  if middle
             return headerSize() - HSIZE - @info[:NumberOfRelocations] * 4
         end
+
 
         def print(what, how)
             mode(parseHow(how))

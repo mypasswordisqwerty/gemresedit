@@ -216,6 +216,33 @@ module Resedit
             end
         end
 
+        def saveData(file)
+            mode(HOW_CHANGED)
+            file.write(@bytes)
+        end
+
+        def saveChanges(file)
+            mode(HOW_CHANGED)
+            file.write([@realSize, @changes.length].pack('VV'))
+            @changes.each{|c,bts|
+                file.write([c, bts.length].pack('VV'))
+                file.write(bts)
+            }
+        end
+
+        def loadChanges(file)
+            mode(HOW_CHANGED)
+            @realSize,clen=file.read(8).unpack('VV')
+            @add = @bytes[@realSize..-1] if @bytes.length > @realSize
+            @bytes = @bytes[0, @realSize]
+            for i in 0..clen-1
+                ofs, bts = file.read(8).unpack('VV')
+                @changes[ofs] = file.read(bts)
+            end
+            @c2 = @changes.keys.reverse
+            mode(HOW_ORIGINAL)
+        end
+
     end
 
 end

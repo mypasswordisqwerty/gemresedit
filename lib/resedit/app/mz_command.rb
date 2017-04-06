@@ -19,7 +19,7 @@ module Resedit
             @cmds = {
                 "help"=>[method(:help), "show help on mz commands", {"command" => "command to show help on"}],
                 "use"=>[method(:use), "select mz file", {"file" => "path to mz file"}],
-                "save"=>[method(:save), "save current file"],
+                "save"=>[method(:save), "save current file",{"filename" => "filename fir saving", "final"=>"don't save changes"}],
                 "close"=>[method(:close), "close file", {"file" => "path or id of file to close"}],
                 "print"=>[method(:info), "print info about mz objects", {"what" => "files/header/reloc/changes", "how" => "original/modified"}],
                 "append"=>[method(:append), "add bytes to current file", {"value" => "value", "type" => "value type", }],
@@ -116,6 +116,7 @@ module Resedit
             info()
         end
 
+
         def cur()
             raise "No MZ selected." if !@cur
             return @cur
@@ -123,16 +124,19 @@ module Resedit
 
 
         def save(params)
-            cur().save()
+            cur().save(params['filename'], params['final'])
         end
+
 
         def append(params)
             cur().append(params['value'], params['type'])
         end
 
+
         def replace(params)
             cur().replace(params['value'], params['type'])
         end
+
 
         def change(params)
             cur().change(params['ofs'], params['value'], params['disp'], params['type'])
@@ -143,9 +147,11 @@ module Resedit
             cur().revert(params['ofs'])
         end
 
+
         def hex(params)
             cur().hex(params['ofs'], params['size'], params['how'], params['disp'])
         end
+
 
         def dasm(params)
             cur().dasm(params['ofs'], params['size'], params['how'])
@@ -179,6 +185,7 @@ module Resedit
             end
             scmd[0].call(params)
         end
+
 
     end
 

@@ -24,17 +24,24 @@ module Resedit
                 @segments.add(val)
             end
             @appSeg = (@realSize >> 4) + 1
-            puts @appSeg
+        end
+
+
+        def loadChanges(f)
+            super(f)
+            @appSeg = (@realSize >> 4) + 1
         end
 
 
         def seg2Linear(a,s) (s << 4) + a end
+
 
         def seg4Linear(linear)
             linear >>= 4
             min = @segments.sort.reverse.find{|e| e <= linear}
             return min ? min : 0
         end
+
 
         def linear2seg(linear, inSegments=nil)
             inSegments = [seg4Linear(linear)] if !inSegments
@@ -56,7 +63,6 @@ module Resedit
         end
 
 
-
         def removeAppend()
             @segments.each{|s|
                 @segments.delete(s) if (s << 4) > @realSize
@@ -64,10 +70,12 @@ module Resedit
             super()
         end
 
+
         def revert(what)
             @realOfs = @mz.header.headerSize()
             super(what)
         end
+
 
         def append(bytes)
             mode(HOW_ORIGINAL)
@@ -91,6 +99,7 @@ module Resedit
             return res
         end
 
+
         def print(what, how)
             if what=="header"
                 puts "Known segments: " + @segments.sort.map{ |i| sprintf('%04X',i) }.join(", ")
@@ -99,6 +108,7 @@ module Resedit
             @realOfs = @mz.header.headerSize()
             return super(what, how)
         end
+
 
         def dasm(ofs, size, how)
             raise "Crabstone gem required to disasm." if $nocrabstone
@@ -123,8 +133,8 @@ module Resedit
             ensure
                 cs.close()
             end
-
         end
+
 
     end
 end
