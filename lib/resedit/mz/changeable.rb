@@ -35,7 +35,7 @@ module Resedit
             if how == HOW_CHANGED
                 @bytes += @add if @add
             else
-                @add = @bytes[@realSize,-1] if @bytes.length > @realSize
+                @add = @bytes[@realSize..-1] if @bytes.length > @realSize
                 @bytes = @bytes[0, @realSize]
             end
             @changes.each{|c,bts|
@@ -52,7 +52,6 @@ module Resedit
             mode(HOW_ORIGINAL)
             pos = @bytes.length + (@add ? @add.length : 0)
             @add = @add ? @add + bytes : bytes
-            puts "Data appened"
             return pos
         end
 
@@ -82,26 +81,36 @@ module Resedit
         end
 
         def bufWrite(buf, str, index)
-            return buf[0,index] + str + buf[index+str.length..-1]
+            return buf[0, index] + str + buf[index+str.length .. -1]
         end
 
         def change(ofs, bytes)
+            if ofs > @realSize
+                mode(HOW_CHANGED)
+                checkRange(ofs, bytes.length)
+                bytes.each_byte{|b|
+                    @bytes[ofs] = b.chr
+                    ofs += 1
+                }
+                return ofs
+            end
             mode(HOW_ORIGINAL)
             checkRange(ofs, bytes.length)
             if changed?(ofs,bytes.length)
-                lower = @changes.keys.reverse.find { |e| e < ofs + bytes.length }
+                lower = @c2.find { |e| e < ofs + bytes.length }
                 strt = [lower, ofs].min()
                 en = [lower+@changes[lower].length, ofs+bytes.length].max()
-                buf = "\0" * (en-strt)
-                bufWrite(buf, @changes[lower], lower - strt)
-                bufWrite(buf, bytes, ofs - strt)
-                @changes.delete(ofs)
+                buf = ("\0" * (en-strt)).force_encoding(Encoding::ASCII_8BIT)
+                buf = bufWrite(buf, @changes[lower], lower - strt)
+                buf = bufWrite(buf, bytes, ofs - strt)
+                @changes.delete(lower)
+                @c2.delete(lower)
                 change(strt, buf)
             else
                 @changes[ofs] = bytes
+                @c2 = @changes.keys.reverse
             end
-            @c2 = @changes.keys.reverse
-            printf("Change added at: %08X\n", ofs)
+            return ofs
         end
 
         def revertChange(ofs)
@@ -109,14 +118,14 @@ module Resedit
             mode(HOW_ORIGINAL)
             @changes.delete(ofs)
             @c2 = @changes.keys.reverse
-            printf("Change removed at: %08X\n", ofs)
+            return ofs
         end
 
         def revert(what)
             mode(HOW_ORIGINAL)
             if what=='all'
                 removeAppend()
-                @changes = Set.new()
+                @changes = {}
                 @c2=[]
                 return true
             end

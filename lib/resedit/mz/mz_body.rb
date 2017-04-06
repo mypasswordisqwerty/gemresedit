@@ -12,17 +12,19 @@ module Resedit
 
     class MZBody < Changeable
 
-        attr_reader :segments
+        attr_reader :segments, :appSeg
 
         def initialize(mz, file, size)
             super(mz, file, size)
             @segments = Set.new()
-            for i in 0..@mz.header.info[:NumberOfRelocations]
+            for i in 0..@mz.header.info[:NumberOfRelocations]-1
                 r = @mz.header.getRelocation(i)
                 @segments.add(r[1])
                 val = segData(r, 2).unpack('v')[0]
                 @segments.add(val)
             end
+            @appSeg = (@realSize >> 4) + 1
+            puts @appSeg
         end
 
 
@@ -30,7 +32,7 @@ module Resedit
 
         def seg4Linear(linear)
             linear >>= 4
-            min = @segments.sort.reverse.find{|e| e < linear}
+            min = @segments.sort.reverse.find{|e| e <= linear}
             return min ? min : 0
         end
 
@@ -40,7 +42,7 @@ module Resedit
             inSegments.each{|s|
                 raise sprintf("Linear %X less than segment %04X", inSegments[0], s) if linear < (s<<4)
                 a = linear - (s << 4)
-                res += [s,a]
+                res += [a,s]
             }
             return res
         end
@@ -48,6 +50,7 @@ module Resedit
 
         def segData(reloc, size, isStr=false)
             ofs = seg2Linear(reloc[0], reloc[1])
+            return "None" if ofs>@bytes.length
             return getData(ofs, size) if !isStr
             return colVal(ofs, size)
         end
@@ -55,10 +58,10 @@ module Resedit
 
 
         def removeAppend()
-            super()
             @segments.each{|s|
                 @segments.delete(s) if (s << 4) > @realSize
             }
+            super()
         end
 
         def revert(what)
@@ -72,20 +75,19 @@ module Resedit
             addseg = false
             if !@add
                 addseg = true
-                res = 0x10 - @realSize % 0x10
+                res = 0x10 - (@realSize % 0x10)
                 res = 0 if res == 0x10
-                bytes = "\x90" * res if res > 0
+                bytes = ("\x90" * res).force_encoding(Encoding::ASCII_8BIT) + bytes if res > 0
             end
             res += super(bytes)
             @mz.header.setCodeSize(@bytes.length + @add.length)
             seg = linear2seg(res)
-            str = colStr(res) + ', ' + colStr(sprintf("%04X:%04X", seg[0], seg[1]))
+            res = [res, seg]
             if addseg
-                @segments.add(newCodePos >> 4)
-                seg = linear2seg(newCodePos)
-                str+=', ' + colStr(sprintf("%04X:%04X", seg[0], seg[1]))
+                raise "Segs not match" if (@appSeg << 4) != res[0]
+                @segments.add(@appSeg)
+                res += [ [ 0, @appSeg] ]
             end
-            puts "New code added at: " + str
             return res
         end
 
@@ -99,7 +101,7 @@ module Resedit
         end
 
         def dasm(ofs, size, how)
-            raise "Crabstone package required for disasm." if $nocrabstone
+            raise "Crabstone gem required to disasm." if $nocrabstone
             mode(parseHow(how))
             cs = Disassembler.new(ARCH_X86, MODE_16)
             begin

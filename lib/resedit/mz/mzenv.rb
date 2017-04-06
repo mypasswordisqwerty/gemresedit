@@ -49,6 +49,7 @@ module Resedit
         def valueBytes(str)
             return nil if str[0,2] == '0x' || str[0,2]=='0X'
             return nil if str.length % 2 == 1
+            return nil if str[/\H/]
             return [str].pack('H*')
         rescue
             return nil

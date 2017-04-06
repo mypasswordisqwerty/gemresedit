@@ -14,9 +14,9 @@ module Resedit
             raise "Not MZ file" if size < HSIZE
             super(mz, file, HSIZE)
             @fsize = size
-            @XinfoOrig = loadInfo()
-            @Xinfo = nil
-            @info = @XinfoOrig
+            @_infoOrig = loadInfo()
+            @_info = nil
+            @info = @_infoOrig
             raise "Not MZ file" if MAGIC != @info[:Magic]
             readMore(file, headerSize() - HSIZE)
         end
@@ -24,10 +24,10 @@ module Resedit
         def mode(how)
             super(how)
             if @mode == HOW_ORIGINAL
-                @info = @XinfoOrig
+                @info = @_infoOrig
             else
-                @Xinfo = loadInfo() if  !@Xinfo
-                @info = @Xinfo
+                @_info = loadInfo() if  !@_info
+                @info = @_info
             end
         end
 
@@ -49,7 +49,8 @@ module Resedit
         def setCodeSize(size)
             mode(HOW_CHANGED)
             size += headerSize()
-            ch = [size % BLK, size / BLK]
+            mod = size % BLK
+            ch = [mod, size / BLK + (mod ? 1 : 0)]
             change(2, ch.pack('vv'))
         end
 
@@ -100,7 +101,7 @@ module Resedit
             end
             if what == "reloc"
                 ofs = @info[:RelocTableOffset]
-                for i in 0..@info[:NumberOfRelocations]
+                for i in 0..@info[:NumberOfRelocations]-1
                     s1 = colVal(ofs,2)
                     s2 = colVal(ofs+2,2)
                     s3 = @mz.body.segData(getRelocation(i), 2, true)
