@@ -20,19 +20,20 @@ module Resedit
             @segments = nil
         end
 
-        def setSegments(segments)
+        def setSegments(segments, sfix)
             @segments = segments.sort.reverse
+            @sfix = sfix
         end
 
         def addrFormat()
             add = ''
             if @segments
-                seg = @addr >> 4
+                seg = (@addr-@sfix) >> 4
                 min = @segments.find{|e| e <= seg}
                 min = 0 if !min
-                add = sprintf(" %4.4X:%4.4X", min, @addr-(min << 4))
+                add = sprintf(" %04X:%04X", min, @addr - @sfix - (min << 4))
             end
-            res = sprintf("%8.8X%s | ", @addr, add)
+            res = sprintf("%08X%s | ", @addr, add)
             @addr += @charsInLine
             return res
         end
@@ -62,10 +63,10 @@ module Resedit
             @line = addrFormat if !@line
             procColored if color != @pcol && @pcol
             if !color
-                @line += sprintf("%2.2X ",c)
+                @line += sprintf("%02X ",c)
                 @chr += (c<0x20 || c>0x7E) ? '.' : c.chr
             else
-                @cline += sprintf("%2.2X ",c)
+                @cline += sprintf("%02X ",c)
                 @cchr += (c<0x20 || c>0x7E) ? '.' : c.chr
             end
             @pcol = color

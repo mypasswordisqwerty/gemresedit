@@ -14,18 +14,20 @@ module Resedit
             raise "File not specified" if !path
             @path = path.downcase()
             @fsize = File.size(path)
-            open(@path,"rb"){|f|
+            open(@path,"rb:ascii-8bit"){|f|
                 @header = MZHeader.new(self, f, fsize)
                 hsz = @header.headerSize()
                 @body = MZBody.new(self, f, @header.fileSize() - hsz)
             }
             @header.change(4, "\x56\x57")
             @header.change(0x1A, "\xAD\xDE")
+            @header.change(0x24, "\xAD\xDE")
+            @header.change(0x27, "\xAD\xDE")
             @fname = File.basename(@path)
             @name = File.basename(@path, ".*")
             hi = @header.info()
             env().set(:entry, hi[:CS].to_s+":"+hi[:IP].to_s)
-            @header.setSegments()
+            env().set(:append, @body.realSize.to_s)
         end
 
         def env() return MZEnv.instance() end
@@ -37,17 +39,20 @@ module Resedit
         end
 
         def print(what, how)
+            puts "Header changes:" if what=="changes"
             res = @header.print(what, how)
+            puts "Code changes:" if what=="changes"
             res |= @body.print(what, how)
-            raise "Don't know how to print " + what if !res
+            raise "Don't know how to print: " + what if !res
         end
 
         def hex(ofs, size, how, disp)
-            ofs = s2i(ofs)
+            ofs = ofs ? s2i(ofs) : 0
             size = size ? s2i(size) : 0x100
             isfile = disp && (disp[0]=='f' || disp[0]=='F') ? true : false
             wr = HexWriter.new(ofs)
             how = @header.parseHow(how)
+            hsz = 0
             if isfile
                 @header.mode(how)
                 hsz = @header.headerSize()
@@ -55,19 +60,52 @@ module Resedit
                 ofs -= hsz
                 ofs = 0 if ofs < 0
             end
-            wr.setSegments(@header.segments)
+            wr.setSegments(@body.segments, hsz)
             @body.hex(wr, ofs, size, how) if size > 0
             wr.finish()
         end
 
-        def append(data)
-            @nubody = @nubody ? @nubody+data : data
-            @header.addExtended(@nubody.length)
+        def getValue(value, type)
+            s = env().value2bytes(value, type)
         end
 
-        def reset()
-            @header.reset()
-            @body.reset()
+        def append(value,type)
+            @body.append(getValue(value,type))
+        end
+
+        def replace(value, type)
+            @body.removeAppend()
+            append(value,type)
+        end
+
+        def change(ofs, value, disp, type)
+            ofs = s2i(ofs)
+            isfile = disp && (disp[0]=='f' || disp[0]=='F') ? true : false
+            value = getValue(value, type)
+            if isfile
+                @header.change(ofs,value)
+            else
+                @body.change(ofs,value)
+            end
+        end
+
+        def dasm(ofs, size, how)
+            ofs = s2i(ofs ? ofs : "entry")
+            size = size ? s2i(size) : 0x20
+            @body.dasm(ofs, size, how)
+        end
+
+        def valueof(str, type)
+            puts "value of " + str + " is:"
+            p getValue(str, type).unpack("H*")
+        end
+
+        def revert(what)
+            wid = env().s2i_nt(what)
+            what = wid[1] ? wid[0] : what
+            res = @header.revert(what)
+            res |= @body.revert(what)
+            raise "Don't know how to revert: "+what if !res
         end
 
         def save()

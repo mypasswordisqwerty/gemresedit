@@ -19,13 +19,15 @@ module Resedit
             @cmds = {
                 "help"=>[method(:help), "show help on mz commands", {"command" => "command to show help on"}],
                 "use"=>[method(:use), "select mz file", {"file" => "path to mz file"}],
-                "close"=>[method(:close), "close file", {"file" => "path or id of file to close"}],
-                "print"=>[method(:info), "print info about mz objects", {"what" => "files/header/reloc", "how" => "original/modified"}],
                 "save"=>[method(:save), "save current file"],
-                "append"=>[method(:append), "add bytes to current file", {"what" => "file/string/bytes", "value" => "value of bytes", "size" => "size of bytes"}],
-                "replace"=>[method(:replace), "replace added bytes", {"what" => "file/string/bytes", "value" => "value of bytes", "size" => "size of bytes"}],
-                "revert"=>[method(:revert), "revert changes"],
+                "close"=>[method(:close), "close file", {"file" => "path or id of file to close"}],
+                "print"=>[method(:info), "print info about mz objects", {"what" => "files/header/reloc/changes", "how" => "original/modified"}],
+                "append"=>[method(:append), "add bytes to current file", {"value" => "value", "type" => "value type", }],
+                "replace"=>[method(:replace), "replace added bytes", {"value" => "value", "type"=>"value type"}],
+                "change"=>[method(:change), "change bytes at offset", {"ofs" => "data ofset", "value" => "value", "disp" => "code/file", "type"=>"value type"}],
+                "revert"=>[method(:revert), "revert changes", {"ofs"=>"change offset/all"}],
                 "hex"=>[method(:hex), "print hex file", {"ofs" => "data offset", "size" => "data size", "how"=>"original/modified", "disp" => "code/file"}],
+                "dasm"=>[method(:dasm), "print disasm", {"ofs" => "data offset", "size" => "data size", "how"=>"original/modified"}],
             }
             @files = []
             @cur = nil
@@ -125,27 +127,41 @@ module Resedit
         end
 
         def append(params)
-            cur().append(params['what'], params['value'], params['size'])
+            cur().append(params['value'], params['type'])
         end
 
         def replace(params)
-            cur().replace(params['what'], params['value'], params['size'])
+            cur().replace(params['value'], params['type'])
+        end
+
+        def change(params)
+            cur().change(params['ofs'], params['value'], params['disp'], params['type'])
         end
 
 
         def revert(params)
-            cur().revert()
+            cur().revert(params['ofs'])
         end
 
         def hex(params)
             cur().hex(params['ofs'], params['size'], params['how'], params['disp'])
         end
 
+        def dasm(params)
+            cur().dasm(params['ofs'], params['size'], params['how'])
+        end
+
 
         def job(params)
             cmd = params['cmd']
-            if cmd.length==0
+            if cmd.length==0 || File.exist?(cmd)
                 App::get().setShell('mz')
+                return if cmd.length == 0
+                params['p1'] = cmd
+                cmd = "use"
+            end
+            if cmd=="valueof"
+                cur().valueof(params['p1'], params['p2'])
                 return
             end
             if params['help']

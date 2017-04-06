@@ -8,7 +8,7 @@ module Resedit
         PARA = 0x10
         HSIZE = 0x1C
 
-        attr_reader :segments, :info
+        attr_reader :info
 
         def initialize(mz, file, size)
             raise "Not MZ file" if size < HSIZE
@@ -19,11 +19,6 @@ module Resedit
             @info = @XinfoOrig
             raise "Not MZ file" if MAGIC != @info[:Magic]
             readMore(file, headerSize() - HSIZE)
-            @segments = Set.new()
-            for i in 0..@info[:NumberOfRelocations]
-                r = getRelocation(i)
-                @segments.add(r[1])
-            end
         end
 
         def mode(how)
@@ -51,12 +46,11 @@ module Resedit
         end
 
 
-        def setSegments()
-            i = info()
-            for i in 0..i[:NumberOfRelocations]
-                r = relocValue(i)
-                @segments.add(r)
-            end
+        def setCodeSize(size)
+            mode(HOW_CHANGED)
+            size += headerSize()
+            ch = [size % BLK, size / BLK]
+            change(2, ch.pack('vv'))
         end
 
 
@@ -74,36 +68,9 @@ module Resedit
         end
 
 
-
         def getRelocation(idx)
             raise "Wrong relocation index " if idx<0 || idx>@info[:NumberOfRelocations]
             return getData(@info[:RelocTableOffset] + idx * 4, 4).unpack('vv')
-        end
-
-        def relocValue(idx)
-            r = getRelocation(idx)
-            @mz.body.mode(@mode)
-            data = @mz.body.getData(seg2Linear(r[1], r[0]), 2).unpack('v')[0]
-        end
-
-
-        def seg2Linear(s,a=0) (s << 4) + a end
-
-        def seg4Linear(linear)
-            linear >>= 4
-            min = @segments.sort.reverse.find{|e| e < linear}
-            return min ? min : 0
-        end
-
-        def linear2seg(linear, inSegments=nil)
-            inSegments = [seg4Linear(linear)] if !inSegments
-            res = []
-            inSegments.each{|s|
-                raise sprintf("Linear %X less than segment %4.4X", inSegments[0], s) if linear < (s<<4)
-                a = linear - (s << 4)
-                res += [ [s,a] ]
-            }
-            return res
         end
 
 
@@ -117,34 +84,32 @@ module Resedit
             if what == "header"
                 ofs=0
                 @info.each{|k,v|
-                    puts sprintf("%20s:\t%s", k.to_s, colVal(ofs, 2))
+                    printf("%20s:\t%s\n", k.to_s, colVal(ofs, 2))
                     ofs+=2
                 }
                 puts
                 fsz = fileSize()
                 hsz = headerSize()
                 s = colStr(sprintf("%d (%X)", fsz,fsz), changed?(2,4))
-                puts sprintf("mz file size: %s\treal file size: %d (0x%X)", s, @fsize, @fsize)
-                puts sprintf("header size: %s", colStr(hsz, changed?(8)))
-                puts sprintf("code size: %s", colStr(fsz - hsz, @mz.body.add != nil))
-                puts sprintf("reloc table size: %s", colStr(@info[:NumberOfRelocations] * 4, changed?(6)))
-                puts sprintf("free space in header: before relocs 0x%X,  after relocs 0x%X", freeSpace(true), freeSpace())
-                puts "Known segments: " + @segments.map{ |i| sprintf('%4.4X',i) }.join(", ")
+                printf("mz file size: %s\treal file size: %d (0x%X)\n", s, @fsize, @fsize)
+                printf("header size: %s\n", colStr(hsz, changed?(8)))
+                printf("code size: %s\n", colStr(fsz - hsz, @mz.body.add != nil))
+                printf("reloc table size: %s\n", colStr(@info[:NumberOfRelocations] * 4, changed?(6)))
+                printf("free space in header: before relocs 0x%X,  after relocs 0x%X\n", freeSpace(true), freeSpace())
                 return true
             end
             if what == "reloc"
                 ofs = @info[:RelocTableOffset]
                 for i in 0..@info[:NumberOfRelocations]
-                    r = getRelocation(i)
                     s1 = colVal(ofs,2)
                     s2 = colVal(ofs+2,2)
-                    s3 = @mz.body.colVal(seg2Linear(r[1], r[0]),2)
-                    puts sprintf("%4.4X:\t%s:%s\t\t=%s", ofs, s2, s1, s3)
+                    s3 = @mz.body.segData(getRelocation(i), 2, true)
+                    printf("%08X\t%s:%s\t= %s\n", ofs, s2, s1, s3)
                     ofs += 4
                 end
                 return true
             end
-            return false
+            return super(what, how)
         end
 
 

@@ -1,5 +1,6 @@
 require 'resedit/app/colorizer'
 require 'resedit/mz/hexwriter'
+require 'resedit/mz/mzenv'
 
 module Resedit
 
@@ -7,16 +8,18 @@ module Resedit
         HOW_CHANGED = 0
         HOW_ORIGINAL = 1
         COL_CHANGED = Colorizer::YELLOW
-        COL_ORIGINAL = Colorizer::BLUE
+        COL_ORIGINAL = Colorizer::PURPLE
 
-        attr_reader :mz, :bytes, :add, :changes, :realSize
+        attr_reader :mz, :bytes, :add, :changes, :realSize, :realOfs
 
         def initialize(mz, file, size)
             @mz = mz
             @bytes = file.read(size)
+            @realOfs = 0
             @realSize = @bytes.size
             @add = nil
             @changes = {}
+            @c2 = []
             @col = App::get().col
             @mode = HOW_ORIGINAL
         end
@@ -46,26 +49,31 @@ module Resedit
         end
 
         def append(bytes)
+            mode(HOW_ORIGINAL)
+            pos = @bytes.length + (@add ? @add.length : 0)
             @add = @add ? @add + bytes : bytes
-            @size = @bytes.length + @add.length
+            puts "Data appened"
+            return pos
         end
 
         def removeAppend()
+            mode(HOW_ORIGINAL)
             @add = nil
             @bytes = @bytes[0,@realSize]
+            return true
         end
 
 
         def changed?(ofs, size=2)
             return true if ofs+size > @realSize
-            lower = @changes.keys.reverse.find { |e| e < ofs + size }
+            lower = @c2.find { |e| e < (ofs + size) }
             return false if !lower
             return lower + @changes[lower].length > ofs
         end
 
         def nextChange(ofs)
             return ofs if changed?(ofs,1)
-            return @changes.keys.find { |e| e > ofs }
+            return @c2.reverse.find { |e| e > ofs }
         end
 
         def checkRange(ofs, size)
@@ -74,41 +82,53 @@ module Resedit
         end
 
         def bufWrite(buf, str, index)
-            return buf[0,index] + str +buf[index+str.length,-1]
+            return buf[0,index] + str + buf[index+str.length..-1]
         end
 
         def change(ofs, bytes)
             mode(HOW_ORIGINAL)
             checkRange(ofs, bytes.length)
             if changed?(ofs,bytes.length)
-                lower = @changes.keys.reverse.find { |e| e < ofs + size }
+                lower = @changes.keys.reverse.find { |e| e < ofs + bytes.length }
                 strt = [lower, ofs].min()
                 en = [lower+@changes[lower].length, ofs+bytes.length].max()
                 buf = "\0" * (en-strt)
                 bufWrite(buf, @changes[lower], lower - strt)
                 bufWrite(buf, bytes, ofs - strt)
-                if (strt!=lower)
-                    @changes.delete(ofs)
-                end
-                @changes[strt] = buf
+                @changes.delete(ofs)
+                change(strt, buf)
             else
                 @changes[ofs] = bytes
             end
-            @changes = Hash[@changes.sort]
+            @c2 = @changes.keys.reverse
+            printf("Change added at: %08X\n", ofs)
         end
 
         def revertChange(ofs)
             raise sprintf("Change not found at: ") if !@changes[ofs]
             mode(HOW_ORIGINAL)
             @changes.delete(ofs)
-            @changes = Hash[@changes.sort]
+            @c2 = @changes.keys.reverse
+            printf("Change removed at: %08X\n", ofs)
         end
 
-        def revertChanges()
-            @changes.keys.each{|ofs|
-                revertChange(ofs)
-            }
+        def revert(what)
+            mode(HOW_ORIGINAL)
+            if what=='all'
+                removeAppend()
+                @changes = Set.new()
+                @c2=[]
+                return true
+            end
+            if what == 'append' || what==@realSize+@realOfs
+                removeAppend()
+                return true
+            end
+            return false if !@changes[what-@realOfs]
+            revertChange(what-@realOfs)
+            return true
         end
+
 
         def curcol() return @mode == HOW_ORIGINAL ? COL_ORIGINAL : COL_CHANGED end
 
@@ -118,17 +138,11 @@ module Resedit
             return colStr( sprintf(fmt, getData(ofs, size).unpack(u)[0]) , changed?(ofs,size))
         end
 
-        def colStr(str, cond)
-            str = sprintf("%4.4X", str) if !str.is_a?(String)
+        def colStr(str, cond=true)
+            str = sprintf("%04X", str) if !str.is_a?(String)
             return str if !cond
             return @col.color(curcol(), str)
         end
-
-        def reset()
-            removeAppend()
-            revertChanges()
-        end
-
 
         def getData(ofs, size)
             checkRange(ofs, size)
@@ -144,10 +158,19 @@ module Resedit
         end
 
         def print(what, how)
-            wr = HexWriter.new(0)
-            res = hex(wr, 0, 0x100, how)
-            wr.finish()
-            return true
+            mode(parseHow(how))
+            if what=="changes"
+                @changes.each{|ofs,bts|
+                    bts = getData(ofs, bts.length)
+                    printf("%08X: %s\n", ofs+@realOfs, colStr(bts.bytes.map { |b| sprintf("%02X",b) }.join))
+                }
+                if @add
+                    printf("%08X: %s\n", @realSize+@realOfs, colStr(@add.bytes.map { |b| sprintf("%02X",b) }.join))
+                end
+                puts
+                return true
+            end
+            return false
         end
 
 
