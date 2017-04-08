@@ -55,7 +55,7 @@ module Resedit
         end
 
 
-        def print(what, how)
+        def print(what, how=nil)
             puts "Header changes:" if what=="changes"
             res = @header.print(what, how)
             puts "Code changes:" if what=="changes"
@@ -64,7 +64,7 @@ module Resedit
         end
 
 
-        def hex(ofs, size, how, disp)
+        def hex(ofs, size=nil, how=nil, disp=nil)
             ofs = ofs ? s2i(ofs) : 0
             size = size ? s2i(size) : 0x100
             isfile = disp && (disp[0]=='f' || disp[0]=='F') ? true : false
@@ -90,7 +90,7 @@ module Resedit
         end
 
 
-        def append(value,type)
+        def append(value, type=nil)
             res = @body.append(getValue(value,type))
             s = ""
             res.each{|a|
@@ -104,13 +104,13 @@ module Resedit
         end
 
 
-        def replace(value, type)
+        def replace(value, type=nil)
             @body.removeAppend()
             return append(value,type)
         end
 
 
-        def change(ofs, value, disp, type)
+        def change(ofs, value, disp=nil, type=nil)
             ofs = s2i(ofs)
             isfile = disp && (disp[0]=='f' || disp[0]=='F') ? true : false
             value = getValue(value, type)
@@ -123,9 +123,9 @@ module Resedit
         end
 
 
-        def dasm(ofs, size, how)
+        def dasm(ofs, size=nil, how=nil)
             ofs = s2i(ofs ? ofs : "entry")
-            size = size ? s2i(size) : 0x20
+            size = size ? s2i(size) : [0x20, @body.bytes.length-ofs].min
             @body.dasm(ofs, size, how)
         end
 
@@ -146,7 +146,7 @@ module Resedit
         end
 
 
-        def save(filename, final)
+        def save(filename, final=nil)
             raise "Unknown final: " + final if final && final != "final"
             raise "Filename expected." if !filename
             open(filename, "wb:ascii-8bit"){|f|

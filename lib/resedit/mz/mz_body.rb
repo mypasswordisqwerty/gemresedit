@@ -30,6 +30,7 @@ module Resedit
         def loadChanges(f)
             super(f)
             @appSeg = (@realSize >> 4) + 1
+            @segments.add(@appSeg)
         end
 
 

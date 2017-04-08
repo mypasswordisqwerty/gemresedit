@@ -131,7 +131,10 @@ module Resedit
             begin
                 if ARGV.length()==0
                     commandInterface() if @cmdInterface
-                    runCommand('help') if !@cmdInterface
+                    if !@cmdInterface
+                        puts "Command not specified. Known commands are:"
+                        runCommand('help')
+                    end
                 else
                     if (@cmds[ARGV[0]])
                         #check command

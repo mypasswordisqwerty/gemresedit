@@ -9,8 +9,9 @@ require 'resedit/text/huffman'
 require 'resedit/app/font_convert'
 require 'resedit/app/text_convert'
 require 'resedit/convert/bitconv'
+require 'resedit/mz/mz'
 
 
 module Resedit
-    VERSION = "1.3"
+    VERSION = "1.3.1"
 end
