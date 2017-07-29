@@ -123,7 +123,7 @@ module Resedit
                             seg = linear2seg(i.address)
                             bts = i.bytes.map { |b| sprintf("%02X",b) }.join
                             inst = colStr(sprintf("%14s\t%s\t%s", bts, i.mnemonic, i.op_str), changed?(i.address, i.bytes.length))
-                            printf("%08X %04X:%04X%s\n",i.address, seg[0], seg[1], inst)
+                            printf("%08X %04X:%04X%s\n",i.address, seg[1], seg[0], inst)
                         }
                         break
                     rescue
