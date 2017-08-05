@@ -8,7 +8,7 @@ module Resedit
 
     class App
         HIST_FILE = "~/.resedithist"
-        attr_reader :name, :version, :commands, :logger, :copyright, :cmdInterface, :shell, :col
+        attr_reader :name, :version, :commands, :logger, :copyright, :cmdInterface, :shell, :col, :cmds
 
         def self.get()
             return @@instance

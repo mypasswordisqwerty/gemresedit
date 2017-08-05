@@ -1,7 +1,7 @@
 module Resedit
 
     class AppCommand
-        attr_reader :names, :type, :params
+        attr_reader :names, :type, :params, :opts, :ohash
         def initialize(names, type=:std)
             @names, @continue = names, type
             @names = [@names] if not @names.kind_of?(Array)

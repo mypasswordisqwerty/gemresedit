@@ -8,7 +8,7 @@ module Resedit
             super('text', fname)
             @font = nil
             addOption('format','f',nil,'output file format')
-            addOption('encodinc','e',nil,'output file encoding')
+            addOption('encoding','e',nil,'output file encoding')
         end
 
         def import(inname)

@@ -28,9 +28,45 @@ module Resedit
             addParam('command', 'help on specific command', '')
         end
         def job(params)
-            App.get().commands.each{|c|
-                puts c.names[0]
-            }
+            if params['command']
+                cmd = App.get().cmds[params['command']]
+                raise "Unknown command: #{params['command']}" if !cmd
+                puts "Command:"
+                print "\t" + cmd.names[0]
+                if cmd.names.length > 1
+                    print ' ( '
+                    cmd.names.each.with_index{|n,i|
+                        print n + ' ' if i > 0
+                    }
+                    print ')'
+                end
+                puts
+                puts "Usage:"
+                print "\t" + cmd.names[0] + ' <options>'
+                cmd.params.each{|p|
+                    print ' '
+                    print '[' if p[:def] != nil
+                    print p[:name]
+                    print ']' if p[:def] != nil
+                }
+                puts
+                puts "Params:"
+                cmd.params.each{|p|
+                    puts "\t" + p[:name] + "\t - " + p[:descr]
+                }
+                puts "Options:"
+                rohash = cmd.ohash.invert
+                cmd.opts.each{|n, o|
+                    nm = "\t--"  + n
+                    nm += '=' if o[:param]==nil
+                    nm += ", -" + rohash[o[:name]] if rohash[o[:name]]
+                    puts nm + "\t - " + o[:descr]
+                }
+            else
+                App.get().commands.each{|c|
+                    puts c.names[0]
+                }
+            end
         end
     end
 
@@ -58,7 +94,7 @@ module Resedit
     class ShellCommand < AppCommand
         def initialize
             super(['shell'])
-            addParam('shell', 'script file', "")
+            addParam('shell', 'shell name', "")
         end
         def job(params)
             App::get().setShell(params['shell'])
