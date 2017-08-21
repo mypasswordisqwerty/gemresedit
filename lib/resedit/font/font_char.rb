@@ -1,11 +1,12 @@
 module Resedit
 
     class FontChar
-        attr_accessor :index, :data, :realWidth
+        attr_accessor :index, :data, :realWidth, :flags
 
-        def initialize(width, height, index, data=nil, realWidth=nil)
+        def initialize(width, height, index, data=nil, realWidth=nil, flags=nil)
             @width, @height, @index = width, height, index
             @realWidth=realWidth
+            @flags = flags
             @data=data if (data && data.length==width*height)
         end
 
@@ -19,12 +20,34 @@ module Resedit
                     image.setPixel(x+i, y+j, color) if hasPixel(i,j)
                 end
             end
-            if @realWidth && @realWidth<@width
-                image.setPixel(x+realWidth, y, wColor)
+            if @realWidth
+                image.setPixel(x+@realWidth, y, wColor)
+            end
+            if @flags && @flags.length>0
+                for i in 0..@flags.length-1
+                    image.setPixel(x+@realWidth, y+i+1, @flags[i])
+                end
             end
         end
 
-        def scan(image, color, x, y, wColor)
+        def readFlags(image, x, y, bgcolors)
+            empty = true
+            flags = []
+            for i in 0..@height-2
+                flags += [bgcolors[0]]
+                col = image.getPixel(x, y+i)
+                if bgcolors.include?(col)
+                    next
+                end
+                empty=false
+                flags[i] = col
+            end
+            return nil if empty
+            return flags
+        end
+
+
+        def scan(image, color, x, y, wColor, bgcolors)
             @data=[0]*@width*@height
             @realWidth = nil
             _hasData = false
@@ -40,6 +63,8 @@ module Resedit
                     end
                 end
             end
+            fx = x + (@realWidth ? @realWidth : @width)
+            @flags = readFlags(image, fx, y+1, bgcolors)
             @data=nil if !_hasData
             return @data!=nil
         end
