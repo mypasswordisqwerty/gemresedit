@@ -10,4 +10,5 @@ Gem::Specification.new do |s|
   s.files       = Dir['lib/**/*.rb']
   s.executables   = ["resedit"]
   s.add_dependency "chunky_png", "1.3.5"
+  s.add_dependency "builder", "3.2.3"
 end
