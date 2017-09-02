@@ -101,6 +101,7 @@ module Resedit
                 end
             }
             log("Appended at %s",s)
+            return res
         end
 
 
@@ -120,6 +121,12 @@ module Resedit
                 res = @body.change(ofs,value) + @header.headerSize()
             end
             log("Change added at %08X", res)
+        end
+
+        def reloc(ofs)
+            ofs = s2i(ofs)
+            res = @header.addReloc(ofs)
+            log((res ? "Relocation added %08X" : "Relocation %08X already exists"), ofs)
         end
 
 

@@ -28,7 +28,7 @@ module Resedit
             addParam('command', 'help on specific command', '')
         end
         def job(params)
-            if params['command']
+            if params['command'] != ''
                 cmd = App.get().cmds[params['command']]
                 raise "Unknown command: #{params['command']}" if !cmd
                 puts "Command:"

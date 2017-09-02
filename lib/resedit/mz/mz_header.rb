@@ -49,12 +49,23 @@ module Resedit
         end
 
 
-        def setCodeSize(size)
+        def changeSize(size)
             mode(HOW_CHANGED)
-            size += headerSize()
             mod = size % BLK
             ch = [mod, size / BLK + (mod ? 1 : 0)]
             change(2, ch.pack('vv'))
+        end
+
+        def setCodeSize(size)
+            changeSize(size + headerSize())
+        end
+
+        def addHeaderSize(size)
+            mode(HOW_CHANGED)
+            paras = size/16 + (size%16 == 0 ? 0 : 1)
+            append("00" * (paras * PARA))
+            changeSize(fileSize() + paras * PARA)
+            change(8, [@info[:HeaderParagraphs] + paras].pack('v'))
         end
 
 
@@ -83,6 +94,28 @@ module Resedit
             return headerSize() - HSIZE - @info[:NumberOfRelocations] * 4
         end
 
+        def addReloc(ofs)
+            mode(HOW_CHANGED)
+            #check relocation exists
+            for i in 0..@info[:NumberOfRelocations]-1
+                rel = getRelocation(i)
+                if @mz.body.seg2Linear(rel[0], rel[1]) == ofs
+                    return false
+                end
+            end
+            #add relocation
+            if freeSpace()<4
+                addHeaderSize(4)
+                mode(HOW_CHANGED)
+            end
+            val = @mz.body.linear2seg(ofs)
+            puts "VAL"+ val.to_s()
+            pos = @info[:RelocTableOffset]+@info[:NumberOfRelocations]*4
+            change(pos, val.pack('vv'))
+            change(6, [@info[:NumberOfRelocations]+1].pack('v'))
+            return true
+        end
+
 
         def print(what, how)
             mode(parseHow(how))
@@ -103,6 +136,7 @@ module Resedit
                 printf("free space in header: before relocs 0x%X,  after relocs 0x%X\n", freeSpace(true), freeSpace())
                 return true
             end
+            @mz.body.mode(@mode)
             if what == "reloc"
                 ofs = @info[:RelocTableOffset]
                 for i in 0..@info[:NumberOfRelocations]-1

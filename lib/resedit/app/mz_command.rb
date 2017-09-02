@@ -25,6 +25,7 @@ module Resedit
                 "append"=>[method(:append), "add bytes to current file", {"value" => "value", "type" => "value type", }],
                 "replace"=>[method(:replace), "replace added bytes", {"value" => "value", "type"=>"value type"}],
                 "change"=>[method(:change), "change bytes at offset", {"ofs" => "data ofset", "value" => "value", "disp" => "code/file", "type"=>"value type"}],
+                "reloc"=>[method(:reloc), "add relocation", {"value" => "value"}],
                 "revert"=>[method(:revert), "revert changes", {"ofs"=>"change offset/all"}],
                 "hex"=>[method(:hex), "print hex file", {"ofs" => "data offset", "size" => "data size", "how"=>"original/modified", "disp" => "code/file"}],
                 "dasm"=>[method(:dasm), "print disasm", {"ofs" => "data offset", "size" => "data size", "how"=>"original/modified"}],
@@ -142,6 +143,9 @@ module Resedit
             cur().change(params['ofs'], params['value'], params['disp'], params['type'])
         end
 
+        def reloc(params)
+            cur().reloc(params['value'])
+        end
 
         def revert(params)
             cur().revert(params['ofs'])
