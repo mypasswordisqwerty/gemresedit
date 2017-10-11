@@ -1,7 +1,7 @@
 require 'minitest/autorun'
 require 'resedit'
 
-class EscapesTest < Minitest::Unit::TestCase
+class EscapesTest < Minitest::Test
 
     STR = "A\r\n\t B \a\b C\\\\ \x190D\\n"
 

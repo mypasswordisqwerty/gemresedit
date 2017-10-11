@@ -9,9 +9,13 @@ require 'resedit/text/huffman'
 require 'resedit/app/font_convert'
 require 'resedit/app/text_convert'
 require 'resedit/convert/bitconv'
+require 'resedit/convert/codepatch'
 require 'resedit/mz/mz'
+require 'resedit/classes/colorizer'
+require 'resedit/classes/hexwriter'
+require 'resedit/classes/changeable'
 
 
 module Resedit
-    VERSION = "1.5.1"
+    VERSION = "1.6"
 end

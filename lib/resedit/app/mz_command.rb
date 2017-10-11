@@ -1,4 +1,3 @@
-require 'resedit/app/app'
 require 'resedit/app/app_command'
 require 'resedit/mz/mz'
 require 'resedit/mz/mzenv'
@@ -15,14 +14,14 @@ module Resedit
             addParam('p3', "mz command parameter","")
             addParam('p4', "mz command parameter","")
             addParam('p5', "mz command parameter","")
-            addOption('help', 'h', nil, 'help on mz commands')
+            addOption('help', 'h', false, 'help on mz commands')
             @cmds = {
                 "help"=>[method(:help), "show help on mz commands", {"command" => "command to show help on"}],
                 "use"=>[method(:use), "select mz file", {"file" => "path to mz file"}],
                 "save"=>[method(:save), "save current file",{"filename" => "filename fir saving", "final"=>"don't save changes"}],
                 "close"=>[method(:close), "close file", {"file" => "path or id of file to close"}],
                 "print"=>[method(:info), "print info about mz objects", {"what" => "files/header/reloc/changes", "how" => "original/modified"}],
-                "append"=>[method(:append), "add bytes to current file", {"value" => "value", "type" => "value type", }],
+                "append"=>[method(:append), "add bytes to current file", {"value" => "value", "type" => "value type", "where" => "append offset. default: above ss:sp"}],
                 "replace"=>[method(:replace), "replace added bytes", {"value" => "value", "type"=>"value type"}],
                 "change"=>[method(:change), "change bytes at offset", {"ofs" => "data ofset", "value" => "value", "disp" => "code/file", "type"=>"value type"}],
                 "reloc"=>[method(:reloc), "add relocation", {"value" => "value"}],
@@ -94,7 +93,6 @@ module Resedit
 
 
         def use(params)
-            App::get().col.on = true
             mz = getfile(params['file'])
             if mz==nil
                 mz = MZ.new(params['file'])
@@ -113,7 +111,6 @@ module Resedit
             mz.close()
             mz = nil
             @cur = @files[0] if !@cur && @files.length > 0
-            App::get().col.on = false if @files.length == 0
             info()
         end
 

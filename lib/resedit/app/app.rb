@@ -1,6 +1,6 @@
 require 'resedit/app/std_commands'
 require 'resedit/app/mz_command'
-require 'resedit/app/colorizer'
+require 'resedit/classes/colorizer'
 require 'logger'
 require 'readline'
 
@@ -34,7 +34,7 @@ module Resedit
                     @cmds[n] = c;
                 }
             }
-            @col = Colorizer.new(false)
+            @col = Colorizer.instance()
         end
 
 
@@ -83,7 +83,6 @@ module Resedit
             return nil if cmd.length()==0 || cmd[0][0]=='#'
             c = @cmds[cmd[0]]
             raise "Unknown command: #{cmd[0]}" if !c
-            res=[]
             prms = c.parseParams(cmd[1..-1])
             return c,prms
         end

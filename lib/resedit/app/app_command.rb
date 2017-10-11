@@ -67,8 +67,8 @@ module Resedit
                     pidx+=1
                 end
             end
-            @params.each{|p|
-                raise "Expected parameter #{p[:name]}" if res[p[:name]]==nil
+            @params.each{|pp|
+                raise "Expected parameter #{pp[:name]}" if res[pp[:name]]==nil
             }
             return res
         end

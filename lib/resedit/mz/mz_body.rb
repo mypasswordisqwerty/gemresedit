@@ -1,4 +1,4 @@
-require 'resedit/mz/changeable'
+require 'resedit/classes/changeable'
 begin
     require 'crabstone'
     include Crabstone
@@ -23,14 +23,19 @@ module Resedit
                 val = segData(r, 2).unpack('v')[0]
                 @segments.add(val)
             end
-            @appSeg = (@realSize >> 4) + 1
+            updateAppSeg()
+        end
+
+        def updateAppSeg()
+            addr = @realSize+@appendOffset
+            @appSeg = (addr >> 4) + ((addr&0xF)==0 ? 0 : 1)
+            @segments.add(@appSeg)
         end
 
 
         def loadChanges(f)
             super(f)
-            @appSeg = (@realSize >> 4) + 1
-            @segments.add(@appSeg)
+            updateAppSeg()
         end
 
 
@@ -77,23 +82,26 @@ module Resedit
             super(what)
         end
 
-
-        def append(bytes)
+        def append(bytes, where=nil)
             mode(HOW_ORIGINAL)
-            res = 0
             addseg = false
+            align = 0
             if !@add
+                where = seg2Linear(@mz.header.info[:SP], @mz.header.info[:SS])-@realSize if where==nil
+                appendOffset(where) if where>0
+                updateAppSeg()
                 addseg = true
-                res = 0x10 - (@realSize % 0x10)
-                res = 0 if res == 0x10
-                bytes = ("\x90" * res).force_encoding(Encoding::ASCII_8BIT) + bytes if res > 0
+                align = 0x10 - ((@realSize+where) % 0x10)
+                align = 0 if align == 0x10
+                bytes = ("\x90" * align).force_encoding(Encoding::ASCII_8BIT) + bytes if align > 0
             end
-            res += super(bytes)
+            res = super(bytes) + align
+
             @mz.header.setCodeSize(@bytes.length + @add.length)
             seg = linear2seg(res)
             res = [res, seg]
             if addseg
-                raise "Segs not match" if (@appSeg << 4) != res[0]
+                raise "Segs not match #{@appSeg<<4}, #{res[0]}" if (@appSeg << 4) != res[0]
                 @segments.add(@appSeg)
                 res += [ [ 0, @appSeg] ]
             end

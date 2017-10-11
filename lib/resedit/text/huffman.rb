@@ -170,7 +170,7 @@ module Resedit
             bytes.each_byte{|b|
                 raise sprintf("No byte in encode table: %02X", b)  if !tbl[b]
                 val = tbl[b][0]
-                for i in 0..tbl[b][1]-1
+                for _ in 0..tbl[b][1]-1
                     byte |= ((val & 1) << bytelen)
                     val >>= 1
                     bytelen += 1

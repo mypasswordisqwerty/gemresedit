@@ -32,7 +32,7 @@ module Resedit
             end
         end
 
-        def addLine(line, meta)
+        def addLine(line, meta = nil)
             line.encode!("utf-8",@encoding) if @encoding
             line.force_encoding('utf-8')
             @lines += [line]

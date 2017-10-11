@@ -37,7 +37,7 @@ module Resedit
             sz = s.length / 2 + s.length % 2 if !sz || sz==0
             hx = eval('0x'+s, binding())
             s=""
-            for i in 0..sz-1
+            for _ in 0..sz-1
                 s += sprintf("%02X", hx & 0xFF)
                 hx >>= 8
             end

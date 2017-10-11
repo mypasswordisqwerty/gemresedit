@@ -1,5 +1,4 @@
 require 'resedit/app/app_command'
-require 'resedit'
 
 module Resedit
 

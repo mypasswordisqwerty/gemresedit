@@ -1,4 +1,4 @@
-require 'resedit/app/app'
+require 'resedit/classes/colorizer'
 
 module Resedit
 
@@ -10,7 +10,7 @@ module Resedit
             @written = 0
             @charsInLine = 0x10
             @addr = addr
-            @col = App::get().col
+            @col = Colorizer.instance()
             @size = 0
             @line = nil
             @cline = ''

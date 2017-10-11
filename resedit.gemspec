@@ -11,4 +11,5 @@ Gem::Specification.new do |s|
   s.executables   = ["resedit"]
   s.add_dependency "chunky_png", "1.3.5"
   s.add_dependency "builder", "3.2.3"
+  s.required_ruby_version = '~> 2.0'
 end

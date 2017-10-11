@@ -1,3 +1,5 @@
+require 'singleton'
+
 module Resedit
 
     class Colorizer
@@ -12,8 +14,10 @@ module Resedit
 
         attr_accessor :on
 
-        def initialize(on=true)
-            @on = on;
+        include Singleton
+
+        def initialize()
+            @on = true
         end
 
         def color(col, text)

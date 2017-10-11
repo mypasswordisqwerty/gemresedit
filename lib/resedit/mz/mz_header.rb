@@ -1,4 +1,4 @@
-require 'resedit/mz/changeable'
+require 'resedit/classes/changeable'
 
 module Resedit
 
@@ -8,17 +8,18 @@ module Resedit
         PARA = 0x10
         HSIZE = 0x1C
 
-        attr_reader :info
+        attr_reader :info, :mz
 
         def initialize(mz, file, size)
             raise "Not MZ file" if size < HSIZE
-            super(mz, file, HSIZE)
+            @mz = mz
+            super(file, HSIZE)
             @fsize = size
             @_infoOrig = loadInfo()
             @_info = nil
             @info = @_infoOrig
             raise "Not MZ file" if MAGIC != @info[:Magic]
-            readMore(file, headerSize() - HSIZE)
+            addData(file, headerSize() - HSIZE)
         end
 
 
@@ -57,7 +58,18 @@ module Resedit
         end
 
         def setCodeSize(size)
+            mode(HOW_ORIGINAL)
+            ss = @info[:SS]
+            sz = fileSize()-headerSize()
+            min = @info[:MinExtraParagraphs]
             changeSize(size + headerSize())
+            #minextra fix
+            sz = size-sz
+            paras = sz/16 + (sz%16 == 0 ? 0 : 1)
+            change(10, [min+paras].pack('v'))
+
+            #stack move
+            change(14, [ss+paras].pack('v'))
         end
 
         def addHeaderSize(size)
@@ -109,10 +121,10 @@ module Resedit
                 mode(HOW_CHANGED)
             end
             val = @mz.body.linear2seg(ofs)
-            puts "VAL"+ val.to_s()
             pos = @info[:RelocTableOffset]+@info[:NumberOfRelocations]*4
+            cnt = @info[:NumberOfRelocations]
             change(pos, val.pack('vv'))
-            change(6, [@info[:NumberOfRelocations]+1].pack('v'))
+            change(6, [cnt+1].pack('v'))
             return true
         end
 
@@ -128,11 +140,11 @@ module Resedit
                 puts
                 fsz = fileSize()
                 hsz = headerSize()
-                s = colStr(sprintf("%d (%X)", fsz,fsz), changed?(2,4))
+                s = colStr(sprintf("%d (%X)", fsz,fsz), changed?(2, 4))
                 printf("mz file size: %s\treal file size: %d (0x%X)\n", s, @fsize, @fsize)
-                printf("header size: %s\n", colStr(hsz, changed?(8)))
+                printf("header size: %s\n", colStr(hsz, changed?(8, 2)))
                 printf("code size: %s\n", colStr(fsz - hsz, @mz.body.add != nil))
-                printf("reloc table size: %s\n", colStr(@info[:NumberOfRelocations] * 4, changed?(6)))
+                printf("reloc table size: %s\n", colStr(@info[:NumberOfRelocations] * 4, changed?(6, 2)))
                 printf("free space in header: before relocs 0x%X,  after relocs 0x%X\n", freeSpace(true), freeSpace())
                 return true
             end

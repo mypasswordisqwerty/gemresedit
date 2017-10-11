@@ -1,7 +1,7 @@
 require 'minitest/autorun'
 require 'resedit'
 
-class TextTest < Minitest::Unit::TestCase
+class TextTest < Minitest::Test
 
     def test_save_load
         txt = Resedit::Text.new()

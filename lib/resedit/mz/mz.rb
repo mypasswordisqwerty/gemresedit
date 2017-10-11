@@ -1,6 +1,6 @@
 require 'resedit/mz/mz_header'
 require 'resedit/mz/mz_body'
-require 'resedit/mz/hexwriter'
+require 'resedit/classes/hexwriter'
 require 'resedit/mz/mzenv'
 
 module Resedit
@@ -90,8 +90,9 @@ module Resedit
         end
 
 
-        def append(value, type=nil)
-            res = @body.append(getValue(value,type))
+        def append(value, type=nil, where=nil)
+            where = s2i(where) if where
+            res = @body.append(getValue(value,type), where)
             s = ""
             res.each{|a|
                 if a.is_a?(Array)
@@ -105,9 +106,9 @@ module Resedit
         end
 
 
-        def replace(value, type=nil)
+        def replace(value, type=nil, where=nil)
             @body.removeAppend()
-            return append(value,type)
+            return append(value,type, where)
         end
 
 
@@ -120,7 +121,7 @@ module Resedit
             else
                 res = @body.change(ofs,value) + @header.headerSize()
             end
-            log("Change added at %08X", res)
+            log("Change added at %08X", res) if res
         end
 
         def reloc(ofs)
@@ -166,7 +167,6 @@ module Resedit
                 end
             }
         end
-
 
     end
 
