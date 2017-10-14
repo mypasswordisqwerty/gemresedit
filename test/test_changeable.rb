@@ -75,7 +75,7 @@ class ChangeableTest < Minitest::Test
         assert_equal('hond', c.bytes)
         c.change(3,'g')
         assert_equal('hong', c.bytes)
-        assert_equal({0=>'h', 2=>'ng'}, c.getChanges())
+        assert_equal({0=>["w", "h"], 2=>["rd", "ng"]}, c.getChanges())
     end
 
     def test_undo

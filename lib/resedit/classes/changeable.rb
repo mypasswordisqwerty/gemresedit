@@ -11,172 +11,150 @@ module Resedit
         COL_ORIGINAL = Colorizer::PURPLE
         LOG = Logger.new(STDOUT)
 
-        class Sector
+        class Change
 
-            FLAG_CHANGED = 1
-            FLAG_NEIGH_CHANGE = 2
-            FLAG_NU = 4
+            attr_reader :nbuf, :obuf
+            attr_accessor :buf, :sz, :n
 
-            attr_accessor :buf, :o, :c, :flags
+            def initialize(obuf=nil, nbuf=nil)
+                @n = nil
+                @mode = HOW_CHANGED
+                _updbufs(obuf, nbuf)
+            end
 
-            def initialize(buf, flags=0)
-                @o = nil
-                @c = nil
-                @buf = buf ? buf : ''
+            def _updbufs(obuf=nil, nbuf=nil)
+                @obuf = obuf ? obuf : ''
+                @nbuf = nbuf
+                mode()
+            end
+
+            def mode(mode=nil)
+                @mode = mode if mode
+                @buf = (@mode == HOW_CHANGED && @nbuf) ? @nbuf : @obuf
                 @sz = @buf.length
-                @flags = flags
+                @n.mode(mode) if @n && mode
             end
 
-            def fch?; @flags & FLAG_CHANGED !=0 end
-            def fnu?; @flags & FLAG_NU !=0 end
-            def fnch?; @flags & FLAG_NEIGH_CHANGE !=0 end
-
-            def _next(how, change=false)
-                return @c if change && !@c.fnu?
-                return (how == HOW_CHANGED ? @c : @o)
-            end
-
-            def data(ofs, size, how)
-                return _next(how).data(ofs - @sz, size, how) if ofs > @sz
-                return @buf[ofs, -1] + _next(how).data(0, size - @sz + ofs, how) if @sz < ofs+size
+            def data(ofs, size)
+                return @n.data(ofs - @sz, size) if ofs > @sz
+                return @buf[ofs, -1] + @n.data(0, size - @sz + ofs) if @sz < ofs+size
                 return @buf[ofs, size]
             end
 
-            def all(how)
-                n = _next(how)
-                return @buf + (n ? n.all(how) : '')
-            end
-
-            def size(how)
-                n = _next(how)
-                return @sz + (n ? n.size(how) : 0)
-            end
+            def all; return @buf + (@n ? @n.all() : '') end
+            def size; return @sz + (@n ? @n.size() : 0) end
 
             def split(ofs, data, nu=false)
-                tail = Sector.new(@buf[ofs + (nu ? 0 : data.length) .. -1])
-                tail.o = @o
-                tail.c = @c
-                cs = Sector.new(data, FLAG_CHANGED | (nu ? FLAG_NU : 0))
-                cs.o = cs.c = tail
-                if !nu
-                    os = Sector.new(@buf[ofs, data.length], FLAG_NEIGH_CHANGE)
-                    os.o = os.c = tail
+                if ofs+(nu ? 0 : data.length) == @sz
+                    tail = @n
                 else
-                    os = tail
+                    ntail = @nbuf ? @nbuf[ofs + (nu ? 0 : data.length) .. -1] : nil
+                    tail = Change.new(@obuf[ofs + (nu ? 0 : data.length) .. -1], ntail)
+                    tail.n = @n
                 end
-                @buf = @buf[0, ofs]
-                @sz = @buf.length
-                @o = os
-                @c = cs
+                if ofs != 0
+                    body = Change.new(nu ? nil : @obuf[ofs, data.length], data)
+                    body.n = tail
+                    _updbufs(@buf[0, ofs], @nbuf ? @nbuf[0, ofs] : nil)
+                    @n = body
+                else
+                    _updbufs(nu ? nil : @obuf[0, data.length], data)
+                    @n = tail
+                end
+                mode(@mode)
             end
 
-            def insert(ofs, data, how)
-                return @sz + _next(how).insert(ofs - @sz, data, how) if ofs > @sz
+            def insert(ofs, data)
+                return @sz + @n.insert(ofs - @sz, data) if ofs > @sz
                 LOG.debug("inserting #{data} @#{ofs} of #{@buf} #{@sz}")
-                if fnu?
-                    @buf = @buf[0, ofs] + data + @buf[ofs..-1]
-                    @sz += data.length
+                if @nbuf
+                    @nbuf = @nbuf[0, ofs] + data + @nbuf[ofs..-1]
+                    mode()
                     return ofs
                 end
                 split(ofs, data, true)
+                mode()
                 return ofs
             end
 
-            def change(ofs, data, how)
-                return @sz + _next(how, true).change(ofs - @sz, data, how) if ofs > @sz
+            def change(ofs, data)
+                return @sz + @n.change(ofs - @sz, data) if ofs > @sz
                 nxt = data.length - @sz + ofs
                 size = nxt>0 ? data.length-nxt : data.length
-                _next(how, true).change(0, data[size..-1], how) if nxt > 0
-                if fch?
-                    @buf = @buf[0,ofs] + data[0, size] + @buf[ofs+size..-1]
+                @n.change(0, data[size..-1]) if nxt > 0
+                if @nbuf
+                    @nbuf = @nbuf[0,ofs] + data[0, size] + @nbuf[ofs+size..-1]
+                    mode()
                     return ofs
                 end
-                split(ofs, data, false)
+                split(ofs, data[0, size])
+                mode()
                 return ofs
             end
 
-            def undo(ofs, how)
+            def undo(ofs)
                 LOG.debug("undo #{ofs} #{@buf}")
-                return _next(how).undo(ofs - @sz, how) if ofs > @sz
-                raise "Change not found #{buf} #{ofs}" if ofs != @sz || !@c.fch?
-                @c = @o
-                @o.flags = 0 if @o
+                return @n.undo(ofs - @sz) if ofs >= @sz
+                raise "Change not found @#{buf}:#{ofs}" if ofs != 0 || !@nbuf
+                @nbuf = nil
+                mode()
             end
 
             def revert
-                @c = @o
-                @o.flags = 0 if @o
-                @o.revert if @o
+                @nbuf = nil
+                mode()
+                @n.revert if @n
             end
 
-            def changed?(ofs, size, how)
-                return _next(how).changed?(ofs - @sz, size, how) if ofs > @sz
-                return true if fch? || fnch?
-                return _next(how).changed?(0, size - @sz + ofs, how) if @sz < ofs+size
+            def changed?(ofs, size)
+                return @n.changed?(ofs - @sz, size) if ofs > @sz
+                return true if @nbuf
+                return @n.changed?(0, size - @sz + ofs) if @sz < ofs+size
                 return false
             end
 
-            def hex(writer, ofs, size, col, how)
-                n = _next(how)
+            def hex(writer, ofs, size, col)
                 if ofs > @sz
                     return size if !n
-                    return n.hex(writer, ofs - @sz, size, col, how)
+                    return n.hex(writer, ofs - @sz, size, col)
                 end
                 sz = @sz < ofs+size ? @sz-ofs : size
-                writer.addBytes(@buf[ofs, sz], fch? || fnch? ? col : nil)
-                LOG.debug("printed #{@buf[ofs, sz]} #{sz} #{size}")
+                writer.addBytes(@buf[ofs, sz], @nbuf ? col : nil)
                 return 0 if sz==size
-                return n.hex(writer, 0, size-sz, col, how) if n
+                return n.hex(writer, 0, size-sz, col) if n
                 return size-sz
             end
 
-            def getChanges(how, ofs=0)
+            def getChanges(ofs=0)
                 ch = {}
-                n = _next(how)
-                if @flags != 0
-                    ch[ofs] = @buf
-                    LOG.debug("add change #{ofs} = #{@buf}, #{ch}")
+                if @nbuf
+                    ch[ofs] = [@obuf, @nbuf]
                 end
-                ch = ch.merge(n.getChanges(how, ofs+@sz)) if n
+                ch = ch.merge(@n.getChanges(ofs+@sz)) if @n
                 return ch
             end
 
-            def normalize(neig)
-                return if !@c
-                while @flags == 0 && @o.flags == 0 && @c==@o
-                    @c = @o.c
-                    @buf += @o.buf
-                    @sz = @buf.length
-                    @o = @o.o
-                    return if !@o
+            def normalize()
+                while @n && !@nbuf && @obuf.length==0
+                    @obuf = @n.obuf
+                    @nbuf = @n.nbuf
+                    @n = @n.n
                 end
-                while @o.flags==0 && @o.buf == '' && @o.c && @o.c.flags == @flags && neig.o==@o
-                    neig.o=@o.o.o
-                    neig.c=@o.o.c
-                    neig.buf += @o.o.buf
-                    @buf += @o.c.buf
-                    @sz = @buf.length
-                    @c = @o.c.c
-                    @o = @o.c.o
+                @n=@n.n while @n && !@n.nbuf && @n.obuf.length==0
+                while @n &&
+                        ((@obuf.length>0 && @n.obuf.length>0) || (@obuf.length == 0 && @n.obuf.length==0)) &&
+                        ((@nbuf && @n.nbuf) || (!@nbuf && !@n.nbuf))
+                    @obuf += @n.obuf
+                    @nbuf = @nbuf ? @nbuf+@n.nbuf : nil
+                    @n=@n.n
                 end
-                @c.normalize(@o)
+                mode()
+                @n.normalize() if @n
             end
 
-            def dump(neig)
-                n = fch? ? (fnu? ? "N" : "C") : "O"
-                printf("#{n}(#{@buf},#{@flags})")
-                if neig != self
-                    if neig.o == @o
-                        printf("\t\tO(#{neig.buf},#{neig.flags})")
-                        neig = neig.o
-                    else
-                        printf("\t\t|")
-                    end
-                else
-                    neig = @o
-                end
-                puts
-                @c.dump(neig) if @c
+            def dump()
+                printf("#{@sz}:O(#{@obuf})\t\t%s\n", @nbuf ? "N(#{@nbuf if @nbuf})" : "")
+                @n.dump() if @n
             end
         end
 
@@ -186,8 +164,6 @@ module Resedit
             LOG.level = Logger::INFO
             @col = Colorizer.instance()
             @mode = HOW_CHANGED
-            @oSec = nil
-            @cSec = nil
             @root = nil
             addData(fileOrBytes, fileSize)
         end
@@ -198,72 +174,57 @@ module Resedit
             else
                 data = fileOrBytes
             end
-            data = @oSec.buf + data if @oSec
-            @oSec = Sector.new(data)
-            @cSec = @oSec
-            @root = @cSec
+            data = @root.buf + data if @root
+            @root = Change.new(data)
         end
 
 
         def mode(how)
-            @root = how == HOW_CHANGED ? @cSec : @oSec
+            @root.mode(how)
             @mode = how
         end
 
         def insert(offset, data)
             return if !data || !data.length
-            if offset==0
-                nu = Sector.new(data, Sector::FLAG_CHANGED | Sector::FLAG_NU)
-                nu.o = nu.c = @cSec
-                @cSec=nu
-                mode(@mode)
-            else
-                @root.insert(offset, data, @mode)
-            end
-            @cSec.normalize(@oSec)
+            @root.insert(offset, data)
+            @root.normalize()
         end
 
         def undo(offset)
-            if offset==0 and @cSec.fnu?
-                @cSec = @cSec.o
-                mode(@mode)
-            else
-                @root.undo(offset, @mode)
-            end
-            @cSec.normalize(@oSec)
+            @root.undo(offset)
+            @root.normalize()
         end
 
         def change(ofs, bytes)
-            @root.change(ofs, bytes, @mode)
-            @cSec.normalize(@oSec)
+            @root.change(ofs, bytes)
+            @root.normalize()
         end
 
-        def changed?(ofs, size=1); return @root.changed?(ofs, size, @mode) end
+        def changed?(ofs, size=1); return @root.changed?(ofs, size) end
 
         def debug(); LOG.level = Logger::DEBUG end
 
         def dbgdump
-            LOG.debug("---#{@cSec.all(HOW_CHANGED)}---#{@oSec.all(HOW_ORIGINAL)}---\n")
-            @cSec.dump(@oSec)
+            LOG.debug("---#{@root.all()}---\n")
+            @root.dump()
         end
 
-        def getData(ofs, size); return root.data(ofs, size, @mode) end
+        def getData(ofs, size); return @root.data(ofs, size) end
 
-        def bytes; return @root.all(@mode) end
+        def bytes; return @root.all() end
 
-        def getChanges; @root.getChanges(@mode); end
+        def getChanges; @root.getChanges(); end
 
         def revert(what)
             if what=='all'
-                @oSec.revert()
-                @cSec = @oSec
-                mode(@mode)
-                @cSec.normalize(@oSec)
+                @root.revert()
+                @root.normalize()
                 return true
             end
             undo(what)
             return true
         end
+
 
         def curcol; @mode == HOW_ORIGINAL ? COL_ORIGINAL : COL_CHANGED end
 
@@ -287,20 +248,11 @@ module Resedit
             return HOW_CHANGED
         end
 
-        def print(what, how)
-            mode(parseHow(how))
-            if what=="changes"
-                #TODO: print all changes
-                return true
-            end
-            return false
-        end
-
 
         def hex(writer, ofs, size, how)
             mode(parseHow(how))
             col = curcol()
-            return @root.hex(writer, ofs, size, col, @mode)
+            return @root.hex(writer, ofs, size, col)
         end
 
 
