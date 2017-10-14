@@ -38,4 +38,4 @@ build/
 
 ## mac ignores
 .DS_Store
-
+/test.*

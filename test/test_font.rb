@@ -7,9 +7,9 @@ class FontTest < Minitest::Test
         fnt = Resedit::Font.new(4,4,256)
         ltr = [0,0,0,1, 0,0,1,0, 0,1,0,0, 1,1,1,1]
         fnt.setChar(12,ltr)
-        fnt.save('font.png')
+        fnt.save('test.png')
         fnt = Resedit::Font.new(4,4,256)
-        fnt.load('font.png')
+        fnt.load('test.png')
         assert_equal ltr, fnt.getChar(12)
         assert_nil fnt.getChar(13)
         assert_nil fnt.getChar(11)
