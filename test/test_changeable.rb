@@ -105,7 +105,29 @@ class ChangeableTest < Minitest::Test
         assert_equal({}, c.getChanges())
     end
 
-    def test_other
+    def test_save_load
+        c = Resedit::Changeable.new('word')
+        c.insert(0, 'a ')
+        c.change(0,'h')
+        c.change(2,'n')
+        c.insert(4,' of')
+        c.change(3,'g')
+        ch = c.getChanges()
+        cb = c.bytes()
+        c.mode(Resedit::Changeable::HOW_ORIGINAL)
+        ob = c.bytes()
+        io = StringIO.new()
+        c.saveChanges(io)
+        c = Resedit::Changeable.new(cb)
+        io.seek(0)
+        c.loadChanges(io)
+        assert_equal(cb, c.bytes)
+        assert_equal(ch, c.getChanges())
+        c.mode(Resedit::Changeable::HOW_ORIGINAL)
+        assert_equal(ob, c.bytes)
+    end
+
+    def test_hex
         c = Resedit::Changeable.new('word')
         c.insert(3, 'l')
         c.insert(0, 'a ')

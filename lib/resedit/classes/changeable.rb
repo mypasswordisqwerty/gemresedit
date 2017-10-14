@@ -13,8 +13,7 @@ module Resedit
 
         class Change
 
-            attr_reader :nbuf, :obuf
-            attr_accessor :buf, :sz, :n
+            attr_accessor :buf, :sz, :n, :obuf, :nbuf
 
             def initialize(obuf=nil, nbuf=nil)
                 @n = nil
@@ -156,6 +155,15 @@ module Resedit
                 printf("#{@sz}:O(#{@obuf})\t\t%s\n", @nbuf ? "N(#{@nbuf if @nbuf})" : "")
                 @n.dump() if @n
             end
+
+            def cload(ofs, bytes, len)
+                LOG.debug("load #{ofs} #{bytes} #{len}")
+                return @n.cload(ofs - @sz, bytes, len) if ofs > @sz
+                change(ofs, bytes.length>0 ? bytes : '*'*len)
+                nd = ofs==0 ? self : @n
+                nd.nbuf = nd.obuf
+                nd.obuf = bytes
+            end
         end
 
         # Changeable
@@ -262,27 +270,27 @@ module Resedit
         end
 
         def saveChanges(file)
-            raise "Not implemented"
             mode(HOW_CHANGED)
-            file.write([@origSize, @changes.length].pack('VV'))
-            @changes.each{|c,bts|
-                file.write([c, bts.length].pack('VV'))
-                file.write(bts)
+            chs = getChanges()
+            file.write([chs.length].pack('V'))
+            chs.each{|o,bts|
+                flg = bts[0].length==0 ? 0x80000000 : 0
+                file.write([o, bts[1].length | flg ].pack('VV'))
+                file.write(bts[0]) if flg==0
             }
         end
 
         def loadChanges(file)
-            raise "Not implemented"
             mode(HOW_CHANGED)
-            @origSize, clen=file.read(12).unpack('VV')
-            @add = @bytes[@origSize..-1] if @bytes.length > @origSize
-            @bytes = @bytes[0, @origSize]
+            @root.revert
+            clen = file.read(4).unpack('V')[0]
             for _ in 0..clen-1
-                ofs, bts = file.read(8).unpack('VV')
-                @changes[ofs] = file.read(bts)
+                ofs, len = file.read(8).unpack('VV')
+                isNu = len & 0x80000000 !=0
+                len &= 0x7FFFFFFF
+                @root.cload(ofs, isNu ? "" : file.read(len), len)
             end
-            @c2 = @changes.keys.reverse
-            mode(HOW_ORIGINAL)
+            mode(HOW_CHANGED)
         end
 
     end
