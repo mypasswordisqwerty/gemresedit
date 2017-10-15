@@ -8,7 +8,7 @@ module Resedit
         PARA = 0x10
         HSIZE = 0x1C
 
-        attr_reader :info, :mz
+        attr_reader :info, :mz, :relocFix
 
         def initialize(mz, file, size)
             raise "Not MZ file" if size < HSIZE
@@ -18,6 +18,7 @@ module Resedit
             @_infoOrig = loadInfo()
             @_info = nil
             @info = @_infoOrig
+            @relocFix = 0
             raise "Not MZ file" if MAGIC != @info[:Magic]
             addData(file, headerSize() - HSIZE)
         end
@@ -69,9 +70,11 @@ module Resedit
             change(22, [cs+paras].pack('v'))
             for i in 0..@mz.header.info[:NumberOfRelocations]-1
                 rel = getRelocation(i)
-                rel[1]+=paras
-                setRelocation(i, rel)
+                rel[1] += paras-@relocFix
+                fix(@info[:RelocTableOffset] + i * 4, rel.pack('vv'))
             end
+            @relocFix = paras
+            MZEnv.instance().set(:relocFix, paras.to_s)
             return codesize
         end
 
@@ -81,6 +84,15 @@ module Resedit
             append("00" * (paras * PARA))
             changeSize(fileSize() + paras * PARA)
             change(8, [@info[:HeaderParagraphs] + paras].pack('v'))
+        end
+
+        def loadChanges(file)
+            super(file)
+            mode(HOW_ORIGINAL)
+            ocs = @info[:CS]
+            mode(HOW_CHANGED)
+            ncs = @info[:CS]
+            @relocFix = ncs - ocs
         end
 
 
@@ -153,6 +165,7 @@ module Resedit
                 printf("code size: %s\n", colStr(fsz - hsz, @mz.body.changed?(0)))
                 printf("reloc table size: %s\n", colStr(@info[:NumberOfRelocations] * 4, changed?(6, 2)))
                 printf("free space in header: before relocs 0x%X,  after relocs 0x%X\n", freeSpace(true), freeSpace())
+                printf("reloc fix: 0x%X\n", @relocFix)
                 return true
             end
             @mz.body.mode(@mode)
@@ -167,6 +180,7 @@ module Resedit
                 end
                 return true
             end
+            return super(what, how)
         end
 
 

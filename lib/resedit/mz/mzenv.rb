@@ -20,10 +20,15 @@ module Resedit
 
         def s2i(str)
             ss=str.split(':')
-            if ss.length == 2
+            if ss.length == 2 || ss.length == 3
                 ss[0] = '0x'+ss[0] if ss[0][0,2]!='0x'
                 ss[1] = '0x'+ss[1] if ss[1][0,2]!='0x'
-                return (s2i(ss[0]) << 4) + s2i(ss[1])
+                fix = 0
+                if ss.length == 3
+                    raise "Dont known how to #{ss[2]} address" if ss[2]!="fix"
+                    fix = relocFix
+                end
+                return ((s2i(ss[0])+fix) << 4) + s2i(ss[1])
             end
             return eval(str, binding())
         end

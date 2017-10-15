@@ -76,17 +76,21 @@ module Resedit
                 return ofs
             end
 
-            def change(ofs, data)
-                return @sz + @n.change(ofs - @sz, data) if ofs > @sz
+            def change(ofs, data, fix=false)
+                return @sz + @n.change(ofs - @sz, data, fix) if ofs > @sz
                 nxt = data.length - @sz + ofs
                 size = nxt>0 ? data.length-nxt : data.length
-                @n.change(0, data[size..-1]) if nxt > 0
+                @n.change(0, data[size..-1], fix) if nxt > 0
                 if @nbuf
                     @nbuf = @nbuf[0,ofs] + data[0, size] + @nbuf[ofs+size..-1]
                     mode()
                     return ofs
                 end
-                split(ofs, data[0, size])
+                if fix
+                    @obuf = @obuf[0, ofs] + data[0, size] + @obuf[ofs+size..-1]
+                else
+                    split(ofs, data[0, size])
+                end
                 mode()
                 return ofs
             end
@@ -209,6 +213,11 @@ module Resedit
             return ofs
         end
 
+        def fix(ofs, bytes)
+            @root.change(ofs, bytes, true)
+            return ofs
+        end
+
         def changed?(ofs, size=1); return @root.changed?(ofs, size) end
 
         def debug(); LOG.level = Logger::DEBUG end
@@ -262,6 +271,19 @@ module Resedit
             mode(parseHow(how))
             col = curcol()
             return @root.hex(writer, ofs, size, col)
+        end
+
+        def print(what, how)
+            mode(parseHow(how))
+            if what=="changes"
+                getChanges().each{|ofs,bts|
+                    printf("%08X: %s -> %s\n", ofs, bts[0].bytes.map { |b| sprintf("%02X",b) }.join,
+                         colStr(bts[1].bytes.map { |b| sprintf("%02X",b) }.join))
+                }
+                puts
+                return true
+            end
+            return false
         end
 
 

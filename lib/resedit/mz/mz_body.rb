@@ -39,7 +39,7 @@ module Resedit
                 @segments.add(r[1])
                 ofs = seg2Linear(r[0], r[1])
                 val = getData(ofs, 2).unpack('v')[0] + add
-                change(ofs, [val].pack('v'))
+                fix(ofs, [val].pack('v'))
                 @segments.add(val)
             end
         end
@@ -87,6 +87,7 @@ module Resedit
 
         def append(bytes, where=nil)
             mode(HOW_CHANGED)
+            relfix = @mz.header.relocFix
             res = @addsz
             buf = @addsz>0 ? @root.nbuf[0, @addsz] : ''
             buf += bytes
@@ -96,7 +97,7 @@ module Resedit
             insert(0, bytes + "\x00"*(sz-@addsz))
             seg = linear2seg(res)
             res = [res, seg, sz/0x10]
-            patchRelocs(sz/0x10)
+            patchRelocs(sz/0x10 - relfix)
             return res
         end
 

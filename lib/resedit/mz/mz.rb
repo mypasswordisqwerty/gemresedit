@@ -153,6 +153,10 @@ module Resedit
             log("Reverted")
         end
 
+        def hexify(str)
+            str.each_byte.map { |b| sprintf("%02X",b) }.join
+        end
+
 
         def save(filename, final=nil)
             raise "Unknown final: " + final if final && final != "final"
