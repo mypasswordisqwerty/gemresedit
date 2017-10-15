@@ -21,8 +21,9 @@ module Resedit
             end
 
             def addr(idx, adr)
-                adr[0] += @ofs[idx]
-                return adr
+                ret = [adr[0], adr[1]]
+                ret[0] += @ofs[idx]
+                return ret
             end
 
             def hexdata()
