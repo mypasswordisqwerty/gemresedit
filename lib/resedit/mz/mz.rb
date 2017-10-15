@@ -32,7 +32,7 @@ module Resedit
             @name = File.basename(@path, ".*")
             hi = @header.info()
             env().set(:entry, hi[:CS].to_s+":"+hi[:IP].to_s)
-            env().set(:append, sprintf("%04X:0",@body.appSeg))
+            env().set(:append, sprintf("0:0"))
         end
 
 

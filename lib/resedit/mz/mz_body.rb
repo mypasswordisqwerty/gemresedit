@@ -1,4 +1,5 @@
 require 'resedit/classes/changeable'
+
 begin
     require 'crabstone'
     include Crabstone
@@ -12,10 +13,16 @@ module Resedit
 
     class MZBody < Changeable
 
-        attr_reader :segments, :appSeg
+        attr_reader :segments, :appSeg, :mz
 
         def initialize(mz, file, size)
-            super(mz, file, size)
+            @mz = mz
+            super(file, size)
+            @segments = nil
+            @addsz = 0
+        end
+
+        def reloadSegments()
             @segments = Set.new()
             for i in 0..@mz.header.info[:NumberOfRelocations]-1
                 r = @mz.header.getRelocation(i)
@@ -23,27 +30,25 @@ module Resedit
                 val = segData(r, 2).unpack('v')[0]
                 @segments.add(val)
             end
-            updateAppSeg()
         end
 
-        def updateAppSeg()
-            addr = @realSize+@appendOffset
-            @appSeg = (addr >> 4) + ((addr&0xF)==0 ? 0 : 1)
-            @segments.add(@appSeg)
+        def patchRelocs(add)
+            @segments = Set.new()
+            for i in 0..@mz.header.info[:NumberOfRelocations]-1
+                r = @mz.header.getRelocation(i)
+                @segments.add(r[1])
+                ofs = seg2Linear(r[0], r[1])
+                val = getData(ofs, 2).unpack('v')[0] + add
+                change(ofs, [val].pack('v'))
+                @segments.add(val)
+            end
         end
-
-
-        def loadChanges(f)
-            super(f)
-            updateAppSeg()
-        end
-
 
         def seg2Linear(a,s) (s << 4) + a end
 
-
         def seg4Linear(linear)
             linear >>= 4
+            reloadSegments() if !@segments
             min = @segments.sort.reverse.find{|e| e <= linear}
             return min ? min : 0
         end
@@ -63,54 +68,42 @@ module Resedit
 
         def segData(reloc, size, isStr=false)
             ofs = seg2Linear(reloc[0], reloc[1])
-            return "None" if ofs>@bytes.length
+            #return "None" if ofs > @root.size()
             return getData(ofs, size) if !isStr
             return colVal(ofs, size)
         end
 
 
         def removeAppend()
-            @segments.each{|s|
-                @segments.delete(s) if (s << 4) > @realSize
-            }
-            super()
+            mode(HOW_CHANGED)
+            undo(0) if @root.obuf.length==0
+            @addsz = 0
         end
 
-
         def revert(what)
-            @realOfs = @mz.header.headerSize()
             super(what)
+            @addsz = 0
         end
 
         def append(bytes, where=nil)
-            mode(HOW_ORIGINAL)
-            addseg = false
-            align = 0
-            if !@add
-                where = seg2Linear(@mz.header.info[:SP], @mz.header.info[:SS])-@realSize if where==nil
-                appendOffset(where) if where>0
-                updateAppSeg()
-                addseg = true
-                align = 0x10 - ((@realSize+where) % 0x10)
-                align = 0 if align == 0x10
-                bytes = ("\x90" * align).force_encoding(Encoding::ASCII_8BIT) + bytes if align > 0
-            end
-            res = super(bytes) + align
-
-            @mz.header.setCodeSize(@bytes.length + @add.length)
+            mode(HOW_CHANGED)
+            res = @addsz
+            buf = @addsz>0 ? @root.nbuf[0, @addsz] : ''
+            buf += bytes
+            removeAppend()
+            @addsz = buf.length
+            sz = @mz.header.rebuildHeader(@addsz)
+            insert(0, bytes + "\x00"*(sz-@addsz))
             seg = linear2seg(res)
-            res = [res, seg]
-            if addseg
-                raise "Segs not match #{@appSeg<<4}, #{res[0]}" if (@appSeg << 4) != res[0]
-                @segments.add(@appSeg)
-                res += [ [ 0, @appSeg] ]
-            end
+            res = [res, seg, sz/0x10]
+            patchRelocs(sz/0x10)
             return res
         end
 
 
         def print(what, how)
             if what=="header"
+                reloadSegments() if !@segments
                 puts "Known segments: " + @segments.sort.map{ |i| sprintf('%04X',i) }.join(", ")
                 return true
             end

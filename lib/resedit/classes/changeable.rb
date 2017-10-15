@@ -36,7 +36,7 @@ module Resedit
 
             def data(ofs, size)
                 return @n.data(ofs - @sz, size) if ofs > @sz
-                return @buf[ofs, -1] + @n.data(0, size - @sz + ofs) if @sz < ofs+size
+                return @buf[ofs .. -1] + @n.data(0, size - @sz + ofs) if @sz < ofs+size
                 return @buf[ofs, size]
             end
 
@@ -94,7 +94,7 @@ module Resedit
             def undo(ofs)
                 LOG.debug("undo #{ofs} #{@buf}")
                 return @n.undo(ofs - @sz) if ofs >= @sz
-                raise "Change not found @#{buf}:#{ofs}" if ofs != 0 || !@nbuf
+                raise "Change not found @#{ofs}" if ofs != 0 || !@nbuf
                 @nbuf = nil
                 mode()
             end
@@ -106,7 +106,7 @@ module Resedit
             end
 
             def changed?(ofs, size)
-                return @n.changed?(ofs - @sz, size) if ofs > @sz
+                return @n.changed?(ofs - @sz, size) if ofs >= @sz
                 return true if @nbuf
                 return @n.changed?(0, size - @sz + ofs) if @sz < ofs+size
                 return false
@@ -152,7 +152,7 @@ module Resedit
             end
 
             def dump()
-                printf("#{@sz}:O(#{@obuf})\t\t%s\n", @nbuf ? "N(#{@nbuf if @nbuf})" : "")
+                printf("#{@sz}:O(#{@obuf.length})\t\t%s\n", @nbuf ? "N(#{@nbuf.length if @nbuf})" : "")
                 @n.dump() if @n
             end
 
@@ -206,6 +206,7 @@ module Resedit
         def change(ofs, bytes)
             @root.change(ofs, bytes)
             @root.normalize()
+            return ofs
         end
 
         def changed?(ofs, size=1); return @root.changed?(ofs, size) end
@@ -213,7 +214,7 @@ module Resedit
         def debug(); LOG.level = Logger::DEBUG end
 
         def dbgdump
-            LOG.debug("---#{@root.all()}---\n")
+            LOG.debug("---#{@root.size()}---\n")
             @root.dump()
         end
 

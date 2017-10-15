@@ -20,6 +20,11 @@ module Resedit
                 }
             end
 
+            def addr(idx, adr)
+                adr[0] += @ofs[idx]
+                return adr
+            end
+
             def hexdata()
                 @data.each_byte.map { |b| sprintf("%02X",b) }.join
             end
