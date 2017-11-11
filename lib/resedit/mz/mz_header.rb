@@ -7,6 +7,8 @@ module Resedit
         BLK = 0x200
         PARA = 0x10
         HSIZE = 0x1C
+        HDRDESCR = [:Magic, :BytesInLastBlock, :BlocksInFile, :NumberOfRelocations, :HeaderParagraphs, :MinExtraParagraphs, :MaxExtraParagraphs,
+                    :SS, :SP, :Checksum, :IP, :CS, :RelocTableOffset, :OverlayNumber]
 
         attr_reader :info, :mz, :relocFix
 
@@ -43,20 +45,23 @@ module Resedit
 
         def loadInfo()
             v = getData(0, HSIZE).unpack('v*')
-            return  {:Magic => v[0], :BytesInLastBlock => v[1], :BlocksInFile => v[2], :NumberOfRelocations => v[3],
-                     :HeaderParagraphs => v[4], :MinExtraParagraphs => v[5], :MaxExtraParagraphs => v[6],
-                     :SS => v[7], :SP => v[8], :Checksum => v[9], :IP => v[10], :CS => v[11],
-                     :RelocTableOffset => v[12], :OverlayNumber => v[13]
-                     }
+            return HDRDESCR.map.with_index { |x, i| [x, v[i]] }.to_h
         end
 
+
+        def setInfo(field, values)
+            raise "Unknown header field #{field}" if !HDRDESCR.include?(field)
+            values = [values] if !values.is_a?(Array)
+            change(HDRDESCR.index(field)*2, values.pack('v*'))
+        end
 
         def changeSize(size)
             mode(HOW_CHANGED)
             mod = size % BLK
-            ch = [mod, size / BLK + (mod ? 1 : 0)]
-            change(2, ch.pack('vv'))
+            setInfo(:BytesInLastBlock, [mod, size / BLK + (mod ? 1 : 0)])
         end
+
+        def setBodySize(size); changeSize(size + headerSize()) end
 
         def rebuildHeader(codesize)
             mode(HOW_ORIGINAL)
@@ -66,13 +71,14 @@ module Resedit
             codesize += PARA - codesize % PARA if codesize % PARA!=0
             changeSize(sz + codesize + headerSize())
             paras = codesize / PARA
-            change(14, [ss+paras].pack('v'))
-            change(22, [cs+paras].pack('v'))
+            setInfo(:SS, ss+paras)
+            setInfo(:CS, cs+paras)
             for i in 0..@mz.header.info[:NumberOfRelocations]-1
                 rel = getRelocation(i)
                 rel[1] += paras-@relocFix
                 fix(@info[:RelocTableOffset] + i * 4, rel.pack('vv'))
             end
+            mode(HOW_CHANGED)
             @relocFix = paras
             MZEnv.instance().set(:relocFix, paras.to_s)
             return codesize
@@ -81,9 +87,10 @@ module Resedit
         def addHeaderSize(size)
             mode(HOW_CHANGED)
             paras = size/16 + (size%16 == 0 ? 0 : 1)
-            append("00" * (paras * PARA))
+            insert(headerSize(), "\x00" * (paras * PARA))
             changeSize(fileSize() + paras * PARA)
-            change(8, [@info[:HeaderParagraphs] + paras].pack('v'))
+            setInfo(:HeaderParagraphs, @info[:HeaderParagraphs] + paras)
+            mode(HOW_CHANGED)
         end
 
         def loadChanges(file)
@@ -111,12 +118,12 @@ module Resedit
 
 
         def getRelocation(idx)
-            raise "Wrong relocation index " if idx<0 || idx>@info[:NumberOfRelocations]
+            raise "Wrong relocation index " if idx<0 || idx >= @info[:NumberOfRelocations]
             return getData(@info[:RelocTableOffset] + idx * 4, 4).unpack('vv')
         end
 
         def setRelocation(idx, data)
-            raise "Wrong relocation index " if idx<0 || idx>@info[:NumberOfRelocations]
+            raise "Wrong relocation index " if idx<0 || idx >= @info[:NumberOfRelocations]
             change(@info[:RelocTableOffset] + idx * 4, data.pack('vv'))
         end
 
@@ -124,6 +131,16 @@ module Resedit
         def freeSpace(middle = false)
             return @info[:RelocTableOffset] - HSIZE  if middle
             return headerSize() - HSIZE - @info[:NumberOfRelocations] * 4
+        end
+
+        def setSpaceForRelocs(count)
+            add = count - @info[:NumberOfRelocations]
+            return if add<=0
+            add -= freeSpace()/4
+            return if add<=0
+            addHeaderSize(add*4)
+            setInfo(:NumberOfRelocations, count)
+            mode(HOW_CHANGED)
         end
 
         def addReloc(ofs)
@@ -136,15 +153,9 @@ module Resedit
                 end
             end
             #add relocation
-            if freeSpace()<4
-                addHeaderSize(4)
-                mode(HOW_CHANGED)
-            end
+            setSpaceForRelocs(@info[:NumberOfRelocations]+1)
             val = @mz.body.linear2seg(ofs)
-            pos = @info[:RelocTableOffset]+@info[:NumberOfRelocations]*4
-            cnt = @info[:NumberOfRelocations]
-            change(pos, val.pack('vv'))
-            change(6, [cnt+1].pack('v'))
+            setRelocation(@info[:NumberOfRelocations], val)
             return true
         end
 

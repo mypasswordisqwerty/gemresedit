@@ -190,8 +190,10 @@ module Resedit
             @root = Change.new(data)
         end
 
+        def setData(data); @root = Change.new(data) end
 
         def mode(how)
+            return if @mode==how
             @root.mode(how)
             @mode = how
         end

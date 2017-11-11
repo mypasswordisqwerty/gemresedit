@@ -58,7 +58,7 @@ module Resedit
 
         def load(filename, count=nil)
             @lines = @formatter.loadLines(filename)
-            raise "Wrong lines count: "+filename if count && count!=@lines.length
+            raise "Wrong lines count: #{filename} #{count} #{@lines.length}" if count && count!=@lines.length
             if @escaper
                 nl=[]
                 @lines.each {|l|

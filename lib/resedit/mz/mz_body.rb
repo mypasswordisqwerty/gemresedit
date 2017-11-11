@@ -27,7 +27,9 @@ module Resedit
             for i in 0..@mz.header.info[:NumberOfRelocations]-1
                 r = @mz.header.getRelocation(i)
                 @segments.add(r[1])
-                val = segData(r, 2).unpack('v')[0]
+                sd = segData(r, 2)
+                next if !sd
+                val = sd.unpack('v')[0]
                 @segments.add(val)
             end
         end
@@ -68,7 +70,7 @@ module Resedit
 
         def segData(reloc, size, isStr=false)
             ofs = seg2Linear(reloc[0], reloc[1])
-            #return "None" if ofs > @root.size()
+            return nil if ofs > @root.size()
             return getData(ofs, size) if !isStr
             return colVal(ofs, size)
         end
