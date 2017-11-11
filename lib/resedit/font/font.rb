@@ -1,5 +1,6 @@
 require 'resedit/font/font_char'
 require 'resedit/image/image_factory'
+require 'resedit/convert/colors'
 
 module Resedit
 
@@ -23,13 +24,12 @@ module Resedit
 
         def buildBppMap()
             return [@bgColor, @charColor] if @bpp==1
-            max = (1 << @bpp) - 1
-            map = [@bgColor] + [@charColor]*max
-            map
+            return ColorMap.new(@bgColor, @charColor).mapBpp(@bpp)
         end
 
         def colorMap(val)
             @colmap = buildBppMap() if !@colmap
+            #@puts "#{val} = #{@colmap[val].to_s(16)}"
             return @colmap[val]
         end
 
