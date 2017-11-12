@@ -29,7 +29,7 @@ module Resedit
 
 
         def export(outname)
-            logd("exporting txet #{@resname} to #{outname}")
+            logd("exporting text #{@resname} to #{outname}")
             File.open(@resname, "rb"){|file|
                 @text = mktext(file, @params['format'], @params['encoding'])
                 unpack(file) if @text

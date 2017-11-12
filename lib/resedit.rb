@@ -9,6 +9,7 @@ require 'resedit/text/huffman'
 require 'resedit/app/font_convert'
 require 'resedit/app/text_convert'
 require 'resedit/convert/bitconv'
+require 'resedit/convert/bitstream'
 require 'resedit/convert/codepatch'
 require 'resedit/convert/colors'
 require 'resedit/mz/mz'
@@ -18,5 +19,5 @@ require 'resedit/classes/changeable'
 
 
 module Resedit
-    VERSION = "1.7"
+    VERSION = "1.7.1"
 end
