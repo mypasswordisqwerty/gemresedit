@@ -4,8 +4,8 @@ module Resedit
 
     class TextConvertCommand < ConvertCommand
 
-        def initialize(fname)
-            super('text', fname)
+        def initialize(fname, cmdname='text')
+            super(cmdname, fname)
             @font = nil
             addOption('format','f',nil,'output file format')
             addOption('encoding','e',nil,'output file encoding')
@@ -16,7 +16,7 @@ module Resedit
             back = backup()
             File.open(back,"rb"){|file|
                 @text = mktext(file, @params['format'], @params['encoding'])
-                @text.load(inname, linesCount())
+                @text.load(inname, expectedLines())
                 StringIO.open("","w+b"){|stream|
                     pack(file, stream)
                     stream.seek(0)
@@ -40,12 +40,10 @@ module Resedit
 
 
         def mktext(file, format, encoding)
-            raise "Not implemented."
+            return Resedit::Text.new(format, encoding)
         end
 
-        def linesCount(file)
-            raise "Not implemented"
-        end
+        def expectedLines(file); nil end
 
         def pack(file, outstream)
             raise "Not implemented."

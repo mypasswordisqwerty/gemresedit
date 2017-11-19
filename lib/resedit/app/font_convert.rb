@@ -4,8 +4,8 @@ module Resedit
 
     class FontConvertCommand < ConvertCommand
 
-        def initialize(fname)
-            super('font', fname)
+        def initialize(fname, cmdname='font')
+            super(cmdname, fname)
             @font = nil
         end
 
