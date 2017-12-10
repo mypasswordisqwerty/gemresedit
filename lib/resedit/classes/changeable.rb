@@ -224,6 +224,8 @@ module Resedit
 
         def debug(); LOG.level = Logger::DEBUG end
 
+        def size; @root.size end
+
         def dbgdump
             LOG.debug("---#{@root.size()}---\n")
             @root.dump()
@@ -294,27 +296,39 @@ module Resedit
             file.write(bytes())
         end
 
-        def saveChanges(file)
-            mode(HOW_CHANGED)
-            chs = getChanges()
-            file.write([chs.length].pack('V'))
-            chs.each{|o,bts|
-                flg = bts[0].length==0 ? 0x80000000 : 0
-                file.write([o, bts[1].length | flg ].pack('VV'))
-                file.write(bts[0]) if flg==0
-            }
+        def hexify(bts)
+            bts.each_byte.map { |b| sprintf("%02X",b) }.join
         end
 
-        def loadChanges(file)
+        def unhexify(str)
+            msg.scan(/../).collect { |c| c.to_i(16).chr }.join
+        end
+
+        def saveChanges()
+            mode(HOW_CHANGED)
+            cfg = {}
+            chs = getChanges()
+            chs.each{|o,bts|
+                obj = {}
+                obj["insert"] = bts[1].length if bts[0].length==0
+                obj["change"] = hexify(bts[0]) if bts[0].length>0
+                cfg[o] = obj
+            }
+            return cfg
+        end
+
+        def loadChanges(hs)
             mode(HOW_CHANGED)
             @root.revert
-            clen = file.read(4).unpack('V')[0]
-            for _ in 0..clen-1
-                ofs, len = file.read(8).unpack('VV')
-                isNu = len & 0x80000000 !=0
-                len &= 0x7FFFFFFF
-                @root.cload(ofs, isNu ? "" : file.read(len), len)
-            end
+            hs.each{|ofs, obj|
+                if obj['insert']
+                    len = obj['insert']
+                    @root.cload(ofs, "", len)
+                elsif obj['change']
+                    bts = unhexify(obj['change'])
+                    @root.cload(ofs, bts, bts.length)
+                end
+            }
             mode(HOW_CHANGED)
         end
 

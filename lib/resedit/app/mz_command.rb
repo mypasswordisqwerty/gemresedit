@@ -1,7 +1,6 @@
 require 'resedit/app/app_command'
-require 'resedit/mz/mz'
-require 'resedit/mz/mzenv'
-
+require 'resedit/mz/multiexe'
+require 'resedit/classes/env'
 
 module Resedit
 
@@ -58,7 +57,9 @@ module Resedit
 
         def getfile(id)
             return @cur if id == nil
-            i,res=MZEnv.instance.s2i_nt(id)
+            #env = !@cur ? Env.new(self) : @cur.env
+            env = Env.new(self)
+            i,res =  env.s2i_nt(id)
             if res
                 raise "Bad file id: " + i.to_s if @files.length < i || i < 0
                 return @files[i]
@@ -95,7 +96,7 @@ module Resedit
         def use(params)
             mz = getfile(params['file'])
             if mz==nil
-                mz = MZ.new(params['file'])
+                mz = Multiexe.new(params['file'])
                 @files+=[mz]
             end
             @cur = mz
@@ -105,7 +106,7 @@ module Resedit
 
         def close(params)
             mz = getfile(params['file'])
-            raise "File not found: "+fn if nil == fl
+            raise "File not found: "+fn if nil == mz
             @files -= [mz]
             @cur = nil if @cur == mz
             mz.close()

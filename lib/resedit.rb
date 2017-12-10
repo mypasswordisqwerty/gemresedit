@@ -8,16 +8,21 @@ require 'resedit/app/app'
 require 'resedit/text/huffman'
 require 'resedit/app/font_convert'
 require 'resedit/app/text_convert'
+require 'resedit/classes/env'
+require 'resedit/classes/colorizer'
+require 'resedit/classes/hexwriter'
+require 'resedit/classes/changeable'
+require 'resedit/classes/exefile'
 require 'resedit/convert/bitconv'
 require 'resedit/convert/bitstream'
 require 'resedit/convert/codepatch'
 require 'resedit/convert/colors'
 require 'resedit/mz/mz'
-require 'resedit/classes/colorizer'
-require 'resedit/classes/hexwriter'
-require 'resedit/classes/changeable'
+require 'resedit/mz/bw'
+require 'resedit/mz/le'
+require 'resedit/mz/multiexe'
 
 
 module Resedit
-    VERSION = "1.7.3"
+    VERSION = "1.8"
 end

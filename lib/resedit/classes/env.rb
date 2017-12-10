@@ -1,15 +1,16 @@
-require 'singleton'
+require 'ostruct'
 
 module Resedit
 
-    class MZEnv
+    class Env < OpenStruct
 
-        include Singleton
+        def initialize(owner=nil)
+            super()
+            @owner = owner
+        end
 
-        def set(name,value)
-            MZEnv.class_eval{
-                define_method(name){ s2i(value) }
-            }
+        def set(name, value)
+            self[name] = s2i(value)
         end
 
         def s2i_nt(str)
