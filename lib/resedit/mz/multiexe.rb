@@ -22,7 +22,7 @@ module Resedit
             while !f.eof?
                 s = f.read(2).unpack('A2')[0]
                 f.seek(-2, :CUR)
-                log("Loading part #{s} @ 0x#{f.tell.to_s(16)}")
+                #log("Loading part #{s} @ 0x#{f.tell.to_s(16)}")
                 raise "Unknown format #{s}" if !KNOWN_TYPES[s]
                 obj = KNOWN_TYPES[s].new()
                 sz = fsize - f.tell()
@@ -63,7 +63,7 @@ module Resedit
         def dasm(ofs, size=nil, how=nil) @cur.dasm(ofs, size, how) end
         def valueof(str, type); @cur.valueof(str, type) end
         def revert(what); @cur.revert(what) end
-
+        def readRelocated(ofs, size); @cur.readRelocated(ofs, size) end
 
         def saveConfig()
             cfg = {}

@@ -7,6 +7,7 @@ module Resedit
         def initialize(owner=nil)
             super()
             @owner = owner
+            @mode = @owner ? @owner.class::MODE : 16
         end
 
         def set(name, value)
@@ -19,17 +20,30 @@ module Resedit
             return [0, false]
         end
 
+        def addr2raw16(ss)
+            ss[0] = '0x'+ss[0] if ss[0][0,2]!='0x'
+            ss[1] = '0x'+ss[1] if ss[1][0,2]!='0x'
+            fix = 0
+            if ss.length == 3
+                raise "Dont known how to #{ss[2]} address" if ss[2]!="fix"
+                fix = relocFix
+            end
+            return ((s2i(ss[0])+fix) << 4) + s2i(ss[1])
+        end
+
+        def addr2raw32(ss)
+            ss[1] = '0x'+ss[1] if ss[1][0,2]!='0x'
+            if ss[0]==''
+                return @owner.body.addr2raw(s2i(ss[1]))
+            end
+            ss[0] = 'seg'+ss[0] if ss[0][0,3]!='seg'
+            return eval(ss[0]+"+"+ss[1])
+        end
+
         def s2i(str)
             ss=str.split(':')
             if ss.length == 2 || ss.length == 3
-                ss[0] = '0x'+ss[0] if ss[0][0,2]!='0x'
-                ss[1] = '0x'+ss[1] if ss[1][0,2]!='0x'
-                fix = 0
-                if ss.length == 3
-                    raise "Dont known how to #{ss[2]} address" if ss[2]!="fix"
-                    fix = relocFix
-                end
-                return ((s2i(ss[0])+fix) << 4) + s2i(ss[1])
+                return @mode==32 ? addr2raw32(ss) : addr2raw16(ss)
             end
             return eval(str, binding())
         end

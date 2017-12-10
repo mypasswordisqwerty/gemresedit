@@ -27,7 +27,9 @@ module Resedit
                 "revert"=>[method(:revert), "revert changes", {"ofs"=>"change offset/all"}],
                 "hex"=>[method(:hex), "print hex file", {"ofs" => "data offset", "size" => "data size", "how"=>"original/modified", "disp" => "code/file"}],
                 "dasm"=>[method(:dasm), "print disasm", {"ofs" => "data offset", "size" => "data size", "how"=>"original/modified"}],
+                "eval"=>[method(:expr), "print expression", {"expr" => "expression"}],
             }
+            @shorters = {"p"=>"print", "e"=>"eval"}
             @files = []
             @cur = nil
         end
@@ -58,7 +60,7 @@ module Resedit
         def getfile(id)
             return @cur if id == nil
             #env = !@cur ? Env.new(self) : @cur.env
-            env = Env.new(self)
+            env = Env.new()
             i,res =  env.s2i_nt(id)
             if res
                 raise "Bad file id: " + i.to_s if @files.length < i || i < 0
@@ -159,9 +161,15 @@ module Resedit
             cur().dasm(params['ofs'], params['size'], params['how'])
         end
 
+        def expr(params)
+            env = @cur && @cur.env ? @cur.env : Env.new()
+            puts env.s2i(params['expr'])
+        end
+
 
         def job(params)
             cmd = params['cmd']
+            cmd = @shorters[cmd] if @shorters[cmd]
             if cmd.length==0 || File.exist?(cmd)
                 App::get().setShell('mz')
                 return if cmd.length == 0

@@ -103,6 +103,27 @@ module Resedit
             addData(file, headerSize() + @sofs - file.tell())
         end
 
+        def readRelocs()
+            def read(pos,cnt, unp); [getData(@info[:FixupRecordOfs]+pos, cnt).unpack(unp),pos+cnt] end
+            ret = {}
+            pgs = getData(@info[:FixupPageOfs], 4*(@info[:ModulePages]+1)).unpack("V*")
+            for i in 0..@info[:ModulePages]-1
+                pos = pgs[i]
+                op = @tables[:Pages][i]
+                pgofs = ((op>>16) + ((op>>8) & 0xFF) -1) * @info[:PageSize]
+                ret[pgofs] = {}
+                while pos<pgs[i+1]
+                    v,pos = read(pos, 5, "CCvC")
+                    raise "Unknown fixup type #{v[0]} #{v[1]}" if (v[0]!=7 && v[0]!=2) || (v[1] & ~0x10 !=0 )
+                    trg, pos=read(pos, v[1]==0x10 ? 4 : 2,v[1]==0x10 ? "V" : "v")
+                    next if v[2]>0x7FFF
+                    ofs = pgofs+v[2]
+                    ret[pgofs][pgofs+v[2]] = @tables[:Objects][v[3]-1][1]+trg[0]
+                end
+            end
+            return ret
+        end
+
 
         def mode(how)
             super(how)
@@ -136,12 +157,11 @@ module Resedit
             super(exe, file, fsize)
         end
 
-        def sections
+        def sections()
             if !@sex
                 ofs = 0
                 @sex=[]
                 @exe.header.tables[:Objects].each{|descr|
-                    puts "sec #{descr}"
                     sz = descr[4] * @exe.header.info[:PageSize]
                     if sz!=0
                         @sex += [[descr[1], ofs, sz]]
@@ -152,23 +172,50 @@ module Resedit
             @sex
         end
 
+        def relocations()
+            if !@relocs
+                @relocs = @exe.header.readRelocs().sort_by{|k,v| k}.reverse.to_h
+                @relocs.each{|k,v|
+                    @relocs[k] = v.sort_by{|k2,v2| k2}.reverse.to_h
+                }
+            end
+            @relocs
+        end
+
         def formatAddress(raw)
             return sprintf("%08X %08X", raw, raw2addr(raw))
         end
 
         def raw2addr(ofs)
             s = sections.find{|s| s[1]<=ofs && s[1]+s[2]>ofs}
-            raise "Not raw offset #{ofs}" if !s
+            raise "Not raw offset #{ofs.to_s(16)}" if !s
             return s[0]+ofs-s[1]
         end
 
         def addr2raw(addr)
-            s = sections.find{|s| s[0]<=ofs && s[0]+s[2]>ofs}
-            raise "Not virtual address #{addr}" if !s
-            return s[1]+ofs-s[0]
+            s = sections.find{|s| s[0]<=addr && s[0]+s[2]>addr}
+            raise "Not virtual address #{addr.to_s(16)}" if !s
+            return s[1]+addr-s[0]
+        end
+
+        def readRelocated(ofs, size);
+            rel = relocations()
+            d = getData(ofs, size)
+            @relocs.each{|o,v|
+                next if o>ofs+size
+                v.each{|a, r|
+                    next if a>ofs+size
+                    break if a<ofs
+                    pos = a-ofs
+                    d = d[0,pos] + [r].pack("V") + (d[pos+4..-1] or '')
+                }
+                break if o<ofs
+            }
+            return d[0,size]
         end
 
     end
+
 
     class LE < ExeFile
         HDRCLASS = LEHeader

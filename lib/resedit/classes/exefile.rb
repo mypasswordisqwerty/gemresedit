@@ -119,6 +119,10 @@ module Resedit
 
         def hex(wr, ofs, size, how)
             wr.addressFormatter = self
+            if how && (how[0]='r' || how[0]='R')
+                wr.addBytes(readRelocated(ofs, size))
+                return
+            end
             super(wr, ofs, size, how)
         end
 
@@ -128,12 +132,17 @@ module Resedit
 
         def dasm(ofs, size, how, mode)
             raise "Crabstone gem required to disasm." if $nocrabstone
+            relocated = false
+            if how && how[0]='r' || how[0]='R'
+                relocated = true
+                how = nil
+            end
             mode(parseHow(how))
             cs = Disassembler.new(ARCH_X86, mode==16 ? MODE_16 : MODE_32)
             begin
                 while true
                     begin
-                        d = getData(ofs, size)
+                        d = relocated ? readRelocated(ofs, size) : getData(ofs, size)
                         cs.disasm(d, ofs).each {|i|
                             bts = i.bytes.map { |b| sprintf("%02X",b) }.join
                             inst = colStr(sprintf("%14s\t%s\t%s", bts, i.mnemonic, i.op_str), changed?(i.address, i.bytes.length))
@@ -153,6 +162,7 @@ module Resedit
         def addr2raw(addr); raise "Not implemented" end
         def append(bytes, where=nil); raise "NotImplemented" end
         def addrFormatter(hofs); nil end
+        def readRelocated(ofs, size); raise "NotImplemented" end
     end
 
     class ExeFile
@@ -222,10 +232,9 @@ module Resedit
             size = size ? s2i(size) : 0x100
             isfile = disp && (disp[0]=='f' || disp[0]=='F') ? true : false
             wr = HexWriter.new(ofs)
-            how = @header.parseHow(how)
             hsz = 0
             if isfile
-                @header.mode(how)
+                @header.mode(@header.parseHow(how))
                 hsz = @header.headerSize()
                 size = @header.hex(wr, ofs, size, how) if ofs < hsz
                 ofs -= hsz
@@ -279,6 +288,8 @@ module Resedit
         end
 
         def reloc(ofs); raise "NotImplemented" end
+
+        def readRelocated(ofs, size); @body.readRelocated(ofs, size) end
 
         def dasm(ofs, size=nil, how=nil)
             ofs = s2i(ofs ? ofs : "entry")
