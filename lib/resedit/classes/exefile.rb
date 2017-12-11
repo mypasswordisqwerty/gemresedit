@@ -25,6 +25,7 @@ module Resedit
             raise "Not EXE file" if fsize < self.class::HSIZE
             @exe = exe
             super(file, self.class::HSIZE)
+            @hdrtbl = nil
             @_infoOrig = loadInfo()
             @_info = nil
             @info = @_infoOrig
@@ -47,7 +48,7 @@ module Resedit
 
         def change(ofs, bytes)
             super(ofs, bytes)
-            @_info = nil if (ofs < HSIZE)
+            @_info = nil if (ofs < self.class::HSIZE)
         end
 
 
@@ -56,16 +57,50 @@ module Resedit
             ret = self.class::HDRDESCR.map.with_index { |x, i| [x, v[i]] }.to_h
             return ret
         end
+
         def loadTables(file); end
         def loadTail(file);
             addData(file, headerSize() - self.class::HSIZE)
         end
 
+        def _headerTable()
+            return @hdrtbl if @hdrtbl
+            @hdrtbl = []
+            sz = ["acC","vnsS","VNlL","qQ"]
+            ofs = 0
+            len = self.class::HDRDESCR.length
+            self.class::HDRUNPACK.scan(/[a-zA-Z][\d*]*/).each{|s|
+                size = sz.index{|v| v.include?(s[0])}
+                raise "Unsupported header descr #{s}" if size==nil
+                size = 1 << size
+                cnt = s.length>1 && s[1]!='*' ? s[1..-1].to_i : 1
+                if s[0]=='a'
+                    cnt = self.class::HSIZE - ofs if s[1]=='*'
+                    @hdrtbl += [[ofs, cnt, s]]
+                    ofs += cnt
+                    next
+                end
+                cnt = len - @hdrtbl.length if s[1]=='*'
+                cnt.times{
+                    @hdrtbl += [[ofs, size, s[0]]]
+                    ofs += size
+                }
+            }
+            raise "Header descr unmatch #{@hdrtbl} #{self.class::HDRDESCR}" if @hdrtbl.length!=len
+            return @hdrtbl
+        end
 
-        def setInfo(field, values, pack="v*")
+        def fieldOffset(field); return _headerTable()[self.class::HDRDESCR.index(field)][0] end
+        def fieldSize(field); return _headerTable()[self.class::HDRDESCR.index(field)][1] end
+
+        def setInfo(field, values)
             raise "Unknown header field #{field}" if !self.class::HDRDESCR.include?(field)
+            tbl = _headerTable()
             values = [values] if !values.is_a?(Array)
-            change(self.class::HDRDESCR.index(field)*2, values.pack(pack))
+            ofs = 0
+            idx = self.class::HDRDESCR.index(field)
+            pack = tbl[idx, values.length].map{|v| v[2]}.join('')
+            change(tbl[idx][0], values.pack(pack))
         end
 
         def setBodySize(size); setFileSize(size + headerSize()) end
@@ -73,13 +108,10 @@ module Resedit
         def headerSize(); self.class::HSIZE end
 
         def print(what, how)
-            return false if what!="header"
+            return super(what, how) if what!="header"
             mode(parseHow(how))
-            ofs=0
-            wsz = @exe.wsize
             @info.each{|k,v|
-                printf("%20s:\t%s\n", k.to_s, colStr(v, changed?(ofs,wsz)))
-                ofs+=2
+                printf("%20s:\t%s\n", k.to_s, colStr(v, changed?(fieldOffset(k),fieldSize(k))))
             }
             puts
             return true
@@ -99,12 +131,6 @@ module Resedit
         def initialize(exe, file, size)
             @exe = exe
             super(file, size)
-            @addsz = 0
-        end
-
-        def removeAppend()
-            mode(HOW_CHANGED)
-            undo(0) if @root.obuf.length==0
             @addsz = 0
         end
 
@@ -158,10 +184,11 @@ module Resedit
             end
         end
 
+        def addrFormatter(hofs); nil end
         def raw2addr(ofs); raise "Not implemented" end
         def addr2raw(addr); raise "Not implemented" end
         def append(bytes, where=nil); raise "NotImplemented" end
-        def addrFormatter(hofs); nil end
+        def removeAppend(); raise "Not Implemented" end
         def readRelocated(ofs, size); raise "NotImplemented" end
     end
 
@@ -325,11 +352,13 @@ module Resedit
             @body.saveData(f)
         end
 
-        def save(filename)
+        def save(filename, final=nil)
+            raise "Wrong 'final' word" if final and final != 'final'
             raise "Filename expected." if !filename
             open(filename, "wb:ascii-8bit"){|f|
                 saveFile(f)
             }
+            return if final
             open(filename+CFGEXT, "w"){|f|
                 f.write(JSON.pretty_generate(saveConfig()))
             }

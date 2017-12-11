@@ -9,7 +9,7 @@ module Resedit
                     :RuntimeGdtSize, :MAKEPMVer, :NextHeaderPos, :CVInfoOffset, :LastSelUsed, :PMemAlloc, :AllocIncr, :Reserved4, :Options,
                     :TransStackSel, :ExpFlags, :ProgramSize, :GdtImageSize, :FirstSelector, :DefaultMemStrategy, :Reserved5, :TransferBufferSize,
                     :Reserved6, :ExpPath]
-        HDRUNPACK = "v14V2v3s6v6HHvs48a64"
+        HDRUNPACK = "v14VVv3a6v6CCva48a64"
 
         # unsigned_16 signature;          /* BW signature to mark valid file  */
         # unsigned_16 last_page_bytes;    /* length of image mod 512          */

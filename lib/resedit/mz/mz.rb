@@ -250,6 +250,13 @@ module Resedit
             return res
         end
 
+        def removeAppend()
+            mode(HOW_CHANGED)
+            undo(0) if @root.obuf.length==0
+            @addsz = 0
+        end
+
+
 
         def print(what, how)
             if what=="header"

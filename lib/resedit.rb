@@ -25,5 +25,5 @@ require 'resedit/mz/multiexe'
 
 
 module Resedit
-    VERSION = "1.8"
+    VERSION = "1.8.1"
 end

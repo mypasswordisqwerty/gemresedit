@@ -28,6 +28,7 @@ module Resedit
                 "hex"=>[method(:hex), "print hex file", {"ofs" => "data offset", "size" => "data size", "how"=>"original/modified", "disp" => "code/file"}],
                 "dasm"=>[method(:dasm), "print disasm", {"ofs" => "data offset", "size" => "data size", "how"=>"original/modified"}],
                 "eval"=>[method(:expr), "print expression", {"expr" => "expression"}],
+                "dump"=>[method(:dump), "dump exe parts", {"out" => "output filename", "parts"=>"list of parts", "how"=>"original/modified"}],
             }
             @shorters = {"p"=>"print", "e"=>"eval"}
             @files = []
@@ -164,6 +165,10 @@ module Resedit
         def expr(params)
             env = @cur && @cur.env ? @cur.env : Env.new()
             puts env.s2i(params['expr'])
+        end
+
+        def dump(params)
+            cur().dump(params['out'], params['parts'], params['how'])
         end
 
 

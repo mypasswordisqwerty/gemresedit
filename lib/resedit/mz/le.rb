@@ -9,63 +9,11 @@ module Resedit
                     :PageSize, :PageShift, :FixupSize, :FixupCsum, :LoaderSize, :LoaderCsum, :ObjectTableOfs, :ObjectsInModule,
                     :ObjectPageOfs, :ObjectIterOfs, :ResourceTableOfs, :ResourceTableEntries, :ResidentTableOfs, :EntryTableOfs,
                     :ModuleDirectivesOfs, :ModuleDirectives, :FixupPageOfs, :FixupRecordOfs, :ImportTblOfs, :ImportEntries, :ImportProcOfs,
-                    :PerPageCsum, :DataPagesOfs, :PreloadPages, :NonResTableOfs, :NonResTableLen, :NonResTableCsum, :AutoDSObject,
+                    :PerPageCsumOfs, :DataPagesOfs, :PreloadPages, :NonResTableOfs, :NonResTableLen, :NonResTableCsum, :AutoDSObject,
                     :DebugInfoOfs, :DebugInfoLen, :InstancePreload, :InstanceDemand, :Heapsize]
-        HDRUNPACK = "vHHVvvV40"
-
-        #    00h | "L"   "X" |B-ORD|W-ORD|     FORMAT LEVEL      |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 08h | CPU TYPE  |  OS TYPE  |    MODULE VERSION     |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 10h |     MODULE FLAGS      |   MODULE # OF PAGES   |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 18h |     EIP OBJECT #      |          EIP          |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 20h |     ESP OBJECT #      |          ESP          |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 28h |       PAGE SIZE       |   PAGE OFFSET SHIFT / LE: last page bytes !!!  |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 30h |  FIXUP SECTION SIZE   | FIXUP SECTION CHECKSUM|
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 38h |  LOADER SECTION SIZE  |LOADER SECTION CHECKSUM|
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 40h |    OBJECT TABLE OFF   |  # OBJECTS IN MODULE  |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 48h | OBJECT PAGE TABLE OFF | OBJECT ITER PAGES OFF |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 50h | RESOURCE TABLE OFFSET |#RESOURCE TABLE ENTRIES|
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 58h | RESIDENT NAME TBL OFF |   ENTRY TABLE OFFSET  |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 60h | MODULE DIRECTIVES OFF | # MODULE DIRECTIVES   |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 68h | FIXUP PAGE TABLE OFF  |FIXUP RECORD TABLE OFF |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 70h | IMPORT MODULE TBL OFF | # IMPORT MOD ENTRIES  |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 78h |  IMPORT PROC TBL OFF  | PER-PAGE CHECKSUM OFF |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 80h |   DATA PAGES OFFSET FROM MZ !!!  |    #PRELOAD PAGES     |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 88h | NON-RES NAME TBL OFF  | NON-RES NAME TBL LEN  |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 90h | NON-RES NAME TBL CKSM |   AUTO DS OBJECT #    |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 98h |    DEBUG INFO OFF     |    DEBUG INFO LEN     |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # A0h |   #INSTANCE PRELOAD   |   #INSTANCE DEMAND    |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # A8h |       HEAPSIZE        |
-        #
-
-        # Object Table
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 00h |     VIRTUAL SIZE      |    RELOC BASE ADDR    |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 08h |     OBJECT FLAGS      |    PAGE TABLE INDEX   |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
-        # 10h |  # PAGE TABLE ENTRIES |       RESERVED        |
-        #     +-----+-----+-----+-----+-----+-----+-----+-----+
+        HDRUNPACK = "vCCVvvV*"
+        HDR_OFFSETS = [:ObjectTableOfs, :ObjectPageOfs, :ObjectIterOfs, :ResourceTableOfs,:ResidentTableOfs, :EntryTableOfs, :ModuleDirectivesOfs,
+                     :FixupPageOfs, :FixupRecordOfs, :ImportTblOfs, :ImportProcOfs, :PerPageCsumOfs, :DataPagesOfs, :NonResTableOfs, :DebugInfoOfs]
 
         attr_reader :tables
 
@@ -117,13 +65,11 @@ module Resedit
                     raise "Unknown fixup type #{v[0]} #{v[1]}" if (v[0]!=7 && v[0]!=2) || (v[1] & ~0x10 !=0 )
                     trg, pos=read(pos, v[1]==0x10 ? 4 : 2,v[1]==0x10 ? "V" : "v")
                     next if v[2]>0x7FFF
-                    ofs = pgofs+v[2]
                     ret[pgofs][pgofs+v[2]] = @tables[:Objects][v[3]-1][1]+trg[0]
                 end
             end
             return ret
         end
-
 
         def mode(how)
             super(how)
@@ -133,6 +79,64 @@ module Resedit
                 @_tables = loadTables(nil) if !@_tables
                 @tables = @_tables
             end
+        end
+
+        def fixOffsets(after, val)
+            HDR_OFFSETS.each{|ofs|
+                next if @info[ofs]==0 or @info[ofs]<=after
+                @info[ofs]+=val
+                setInfo(ofs, @info[ofs])
+            }
+        end
+
+        def addSegment(size)
+            mode(HOW_CHANGED)
+            psz = @info[:PageSize]
+            tail = size % psz
+            pgs = size /@info[:PageSize] + (tail==0 ? 0 : 1) #/
+            tail = psz if tail==0
+
+            #add new object
+            last = @tables[:Objects][-1]
+            virt = last[1]+last[0]  #lastobject virt base+size
+            virt = (virt+psz-1) & ~(psz-1) #align vbase to page size
+            obj = [psz*pgs, virt, 0x2047, last[3]+last[4], pgs, 0].pack("V*")  # 32b rwx preloaded object
+            insert(@info[:ObjectTableOfs] + 0x18*@info[:ObjectsInModule], obj)
+            fixOffsets(@info[:ObjectTableOfs], 0x18)
+            setInfo(:ObjectsInModule, @info[:ObjectsInModule]+1)
+
+            #add pages info
+            pinfo = ''
+            pgs.times{|i|
+                pid = @info[:ModulePages]+i+1
+                pinfo+=[pid<<16].pack("V")
+            }
+            insert(@info[:ObjectPageOfs]+@info[:ModulePages]*4, pinfo)
+            fixOffsets(@info[:ObjectPageOfs], pinfo.length)
+
+            #add loading fixup
+            fixofs = 4*@info[:ModulePages]
+            fixval = getData(@info[:FixupPageOfs]+fixofs, 4).unpack("V")[0]
+            pinfo = [fixval].pack("V") * pgs #end of fixup table <added pages> times
+            insert(@info[:FixupPageOfs]+fixofs+4, pinfo)
+            fixOffsets(@info[:FixupPageOfs], pinfo.length)
+            setInfo(:FixupSize, @info[:FixupSize]+pinfo.length)
+
+            #fixup = [7,0,0, @info[:ObjectsInModule]+1,0].pack("CCvCv")
+            #insert(@info[:FixupRecordOfs]+fixval, fixup)
+            #fixOffsets(@info[:FixupRecordOfs], fixup.length)
+
+            #change pages and tail, fix loader size
+            setInfo(:ModulePages, @info[:ModulePages]+pgs)
+            setInfo(:PageShift, tail)
+            setInfo(:LoaderSize, @info[:ImportTblOfs]-@info[:ObjectTableOfs]+1)
+
+            @_tables = nil
+            #reload tables
+            mode(HOW_CHANGED)
+
+            return (@info[:ModulePages]-pgs)*@info[:PageSize]
+
         end
 
         def headerSize(); @info[:DataPagesOfs]-@exe.mzSize end
@@ -212,6 +216,16 @@ module Resedit
                 break if o<ofs
             }
             return d[0,size]
+        end
+
+        def append(bytes, where=nil)
+            @relocs = nil
+            mode(HOW_CHANGED)
+            pos = @exe.header.addSegment(bytes.length)
+            sz = size
+            insert(sz, "\x00"*(pos-sz))
+            insert(pos, bytes)
+            return [raw2addr(pos), pos]
         end
 
     end

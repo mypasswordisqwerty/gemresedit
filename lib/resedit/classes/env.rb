@@ -83,6 +83,7 @@ module Resedit
                 t = t[1..-1] while t.length > 0 && (t[0]<'0' || t[0]>'9')
                 tp[1] = t.to_i
             end
+            return str if tp[0] == "s"
             if tp[0]=='f' || (File.exists?(str) && !tp[0])
                 return File.read(str)
             end
@@ -91,7 +92,7 @@ module Resedit
             res = eval(str, binding()) if !res
             return res if res.is_a?(String)
             res = valueHex(res.to_s(16), tp)
-            raise str if !res
+            raise str if res==nil
             return res
         rescue Exception => e
             raise "Bad value: "+e.to_s

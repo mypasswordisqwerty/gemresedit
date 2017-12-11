@@ -39,6 +39,18 @@ module Resedit
             }
         end
 
+        def dump(out, parts, how)
+            prts = eval(parts)
+            open(out,"wb"){|f|
+                prts.each{|i|
+                    pr = @parts[i]
+                    pr.header.mode(pr.header.parseHow(how))
+                    pr.body.mode(pr.header.parseHow(how))
+                    pr.saveFile(f)
+                }
+            }
+        end
+
         def header; @cur.header end
         def body; @cur.body end
         def env; @cur.env end
