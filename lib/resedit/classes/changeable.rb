@@ -301,7 +301,7 @@ module Resedit
         end
 
         def unhexify(str)
-            msg.scan(/../).collect { |c| c.to_i(16).chr }.join
+            str.scan(/../).collect { |c| c.to_i(16).chr }.join
         end
 
         def saveChanges()
@@ -323,10 +323,10 @@ module Resedit
             hs.each{|ofs, obj|
                 if obj['insert']
                     len = obj['insert']
-                    @root.cload(ofs, "", len)
+                    @root.cload(ofs.to_i, "", len)
                 elsif obj['change']
                     bts = unhexify(obj['change'])
-                    @root.cload(ofs, bts, bts.length)
+                    @root.cload(ofs.to_i, bts, bts.length)
                 end
             }
             mode(HOW_CHANGED)

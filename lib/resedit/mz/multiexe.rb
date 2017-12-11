@@ -24,7 +24,7 @@ module Resedit
                 f.seek(-2, :CUR)
                 #log("Loading part #{s} @ 0x#{f.tell.to_s(16)}")
                 raise "Unknown format #{s}" if !KNOWN_TYPES[s]
-                obj = KNOWN_TYPES[s].new()
+                obj = KNOWN_TYPES[s].new(nil, @quiet)
                 sz = fsize - f.tell()
                 obj.load(f, sz, @parts.length>0 ? @parts[-1] : 0 )
                 cid = @parts.length() if obj.is_a?(LE)
@@ -34,6 +34,9 @@ module Resedit
         end
 
         def loadConfig(cfg)
+            @parts.each.with_index{|pr, i|
+                pr.loadConfig(cfg[i.to_s])
+            }
         end
 
         def header; @cur.header end

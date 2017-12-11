@@ -204,8 +204,8 @@ module Resedit
         def loadConfig(cfg)
             cfg = cfg[self.class.name]
             raise "Wrong config: #{self.class.name} expected" if !cfg
-            @header.loadConfig(cfg)
-            @body.loadConfig(cfg)
+            @header.loadChanges(cfg['header'])
+            @body.loadChanges(cfg['body'])
         end
 
         def close(); end
@@ -316,7 +316,7 @@ module Resedit
         def saveConfig()
             cfg = {}
             cfg['header'] = @header.saveChanges()
-            cfg['body'] = @body.saveChanges(f)
+            cfg['body'] = @body.saveChanges()
             return {self.class.name => cfg}
         end
 
