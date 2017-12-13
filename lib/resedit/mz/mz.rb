@@ -104,7 +104,7 @@ module Resedit
             mode(HOW_CHANGED)
         end
 
-        def addReloc(ofs)
+        def addReloc(ofs, trg)
             mode(HOW_CHANGED)
             #check relocation exists
             for i in 0..@info[:NumberOfRelocations]-1
@@ -279,13 +279,6 @@ module Resedit
     class MZ < ExeFile
         HDRCLASS = MZHeader
         BODYCLASS = MZBody
-
-        def reloc(ofs)
-            ofs = s2i(ofs)
-            res = @header.addReloc(ofs)
-            log((res ? "Relocation added %08X" : "Relocation %08X already exists"), ofs)
-        end
-
     end
 
 end

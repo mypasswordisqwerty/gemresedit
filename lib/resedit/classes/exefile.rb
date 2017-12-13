@@ -121,6 +121,7 @@ module Resedit
         def fileSize(); raise "NotImplemented"  end
         def setFileSize(size); raise "NotImplemented" end
         def entry(size); raise "NotImplemented" end
+        def addReloc(ofs, value); raise "NotImplemented" end
     end
 
 
@@ -190,6 +191,8 @@ module Resedit
         def append(bytes, where=nil); raise "NotImplemented" end
         def removeAppend(); raise "Not Implemented" end
         def readRelocated(ofs, size); raise "NotImplemented" end
+        def findRelocValue(value);  raise "NotImplemented" end
+        def findStrings; raise "NotImplemented" end
     end
 
     class ExeFile
@@ -314,8 +317,6 @@ module Resedit
             log("Change added at %08X", res) if res
         end
 
-        def reloc(ofs); raise "NotImplemented" end
-
         def readRelocated(ofs, size); @body.readRelocated(ofs, size) end
 
         def dasm(ofs, size=nil, how=nil)
@@ -325,7 +326,7 @@ module Resedit
         end
 
 
-        def valueof(str, type)
+        def valueof(str, type=nil)
             puts "value of " + str + " is:"
             p getValue(str, type).unpack("H*")
         end
@@ -362,6 +363,34 @@ module Resedit
             open(filename+CFGEXT, "w"){|f|
                 f.write(JSON.pretty_generate(saveConfig()))
             }
+        end
+
+        def reloc(ofs, target=nil)
+            ofs = s2i(ofs)
+            trg = s2i(target) if target
+            res = @header.addReloc(ofs, trg)
+            log((res ? "Relocation added %08X" : "Relocation %08X already exists"), ofs)
+            return res
+        end
+
+        def relocfind(value, type=nil);
+            value = getValue(value, type)
+            res = @body.findRelocValue(value)
+            res.each{|p,v|
+                log("found at #{p.to_s(16)} relocs: #{v.map{|v| v.to_s(16)}}")
+            }
+            log("relocs not found") if !res
+            return res
+        end
+
+        def stringfind(size=nil)
+            res = @body.findStrings()
+            log("Strings found:\n")
+            res.each{|a|
+                logs("#{a[0]} at #{a[1].to_s(16)} relocs: #{a[2].map{|v| v.to_s(16)}}")
+            }
+            logd("strings not found") if !res
+            return res
         end
     end
 

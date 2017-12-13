@@ -84,6 +84,7 @@ module Resedit
                 tp[1] = t.to_i
             end
             return str if tp[0] == "s"
+            return str+"\x00" if tp[0] == "z"
             if tp[0]=='f' || (File.exists?(str) && !tp[0])
                 return File.read(str)
             end

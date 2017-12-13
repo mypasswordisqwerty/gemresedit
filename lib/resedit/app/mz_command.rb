@@ -23,12 +23,14 @@ module Resedit
                 "append"=>[method(:append), "add bytes to current file", {"value" => "value", "type" => "value type", "where" => "append offset. default: above ss:sp"}],
                 "replace"=>[method(:replace), "replace added bytes", {"value" => "value", "type"=>"value type"}],
                 "change"=>[method(:change), "change bytes at offset", {"ofs" => "data ofset", "value" => "value", "disp" => "code/file", "type"=>"value type"}],
-                "reloc"=>[method(:reloc), "add relocation", {"value" => "value"}],
+                "reloc"=>[method(:reloc), "add relocation", {"offset" => "reloc offset", "target" => "address reloc points to"}],
                 "revert"=>[method(:revert), "revert changes", {"ofs"=>"change offset/all"}],
                 "hex"=>[method(:hex), "print hex file", {"ofs" => "data offset", "size" => "data size", "how"=>"original/modified", "disp" => "code/file"}],
                 "dasm"=>[method(:dasm), "print disasm", {"ofs" => "data offset", "size" => "data size", "how"=>"original/modified"}],
                 "eval"=>[method(:expr), "print expression", {"expr" => "expression"}],
                 "dump"=>[method(:dump), "dump exe parts", {"out" => "output filename", "parts"=>"list of parts", "how"=>"original/modified"}],
+                "relocfind"=>[method(:relocfind), "find relocation with value", {"value" => "value", "type"=>"value type"}],
+                "stringfind"=>[method(:stringfind), "search for strings in exe", {"size"=>"min string size"}],
             }
             @shorters = {"p"=>"print", "e"=>"eval"}
             @files = []
@@ -145,7 +147,15 @@ module Resedit
         end
 
         def reloc(params)
-            cur().reloc(params['value'])
+            cur().reloc(params['offset'],params['target'])
+        end
+
+        def relocfind(params)
+            cur().relocfind(params['value'], params['type'])
+        end
+
+        def stringfind(params)
+            cur().stringfind(params['size'])
         end
 
         def revert(params)

@@ -39,7 +39,7 @@ module Resedit
             }
         end
 
-        def dump(out, parts, how)
+        def dump(out, parts, how=nil)
             prts = eval(parts)
             open(out,"wb"){|f|
                 prts.each{|i|
@@ -74,7 +74,9 @@ module Resedit
         def append(value, type=nil, where=nil); @cur.append(value, type, where) end
         def replace(value, type=nil, where=nil); @cur.replace(value, type, where) end
         def change(ofs, value, disp=nil, type=nil); @cur.change(ofs, value, disp, type) end
-        def reloc(ofs); @cur.reloc(ofs) end
+        def reloc(ofs, target=nil); @cur.reloc(ofs, target) end
+        def relocfind(value, type=nil); @cur.relocfind(value, type) end
+        def stringfind(size=nil); @cur.stringfind(size) end
         def dasm(ofs, size=nil, how=nil) @cur.dasm(ofs, size, how) end
         def valueof(str, type); @cur.valueof(str, type) end
         def revert(what); @cur.revert(what) end

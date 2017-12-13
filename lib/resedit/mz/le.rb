@@ -51,26 +51,6 @@ module Resedit
             addData(file, headerSize() + @sofs - file.tell())
         end
 
-        def readRelocs()
-            def read(pos,cnt, unp); [getData(@info[:FixupRecordOfs]+pos, cnt).unpack(unp),pos+cnt] end
-            ret = {}
-            pgs = getData(@info[:FixupPageOfs], 4*(@info[:ModulePages]+1)).unpack("V*")
-            for i in 0..@info[:ModulePages]-1
-                pos = pgs[i]
-                op = @tables[:Pages][i]
-                pgofs = ((op>>16) + ((op>>8) & 0xFF) -1) * @info[:PageSize]
-                ret[pgofs] = {}
-                while pos<pgs[i+1]
-                    v,pos = read(pos, 5, "CCvC")
-                    raise "Unknown fixup type #{v[0]} #{v[1]}" if (v[0]!=7 && v[0]!=2) || (v[1] & ~0x10 !=0 )
-                    trg, pos=read(pos, v[1]==0x10 ? 4 : 2,v[1]==0x10 ? "V" : "v")
-                    next if v[2]>0x7FFF
-                    ret[pgofs][pgofs+v[2]] = @tables[:Objects][v[3]-1][1]+trg[0]
-                end
-            end
-            return ret
-        end
-
         def mode(how)
             super(how)
             if @mode == HOW_ORIGINAL
@@ -81,6 +61,67 @@ module Resedit
             end
         end
 
+
+        def headerSize(); @info[:DataPagesOfs]-@exe.mzSize end
+        def fileSize(); headerSize()+(@info[:ModulePages]-1)*@info[:PageSize]+@info[:PageShift] end
+        def entry; sprintf("0x%08X", @info[:EIP]) end
+
+        def pageRelocs(pageId, fixOfs=nil, fixObj=nil, fixVal=nil)
+            def read(pos,cnt, unp); [getData(@info[:FixupRecordOfs]+pos, cnt).unpack(unp), pos+cnt] end
+            pgs = getData(@info[:FixupPageOfs]+4*pageId, 8).unpack("V*")
+            pgofs = pageId * @info[:PageSize]
+            ret = {}
+            pos = pgs[0]
+            while pos<pgs[1]
+                v,pos = read(pos, 5, "CCs<C")
+                raise "Unknown fixup type #{v[0]} #{v[1]}" if (v[0]!=7 && v[0]!=2) || (v[1] & ~0x10 !=0 )
+                trg, pos=read(pos, v[1]==0x10 ? 4 : 2,v[1]==0x10 ? "V" : "v")
+                next if fixOfs!=nil && (v[2]!=fixOfs || (v[1]==0 && fixVal>0xFF))
+                if fixOfs
+                    buf = [fixObj, fixVal].pack("C" + v[1]==0x10 ? "V" : "v")
+                    change(@info[:FixupRecordOfs]+pos-1, buf)		#change fixup object & value
+                    return true
+                end
+                next if v[2]<0
+                ret[pgofs+v[2]] = @tables[:Objects][v[3]-1][1]+trg[0]
+            end
+            return false if fixOfs
+            return ret
+        end
+
+
+        def addPageReloc(pageId, ofs, obj, val)
+            return true if pageRelocs(pageId, ofs, obj, val)
+            #extend page fixups
+            buf = [7, 0x10, ofs, obj, val].pack("CCs<CV")
+            #change fixups offsets
+            pgs = getData(@info[:FixupPageOfs]+4*(pageId+1), (@info[:ModulePages]-pageId)*4).unpack("V*")
+            d = buf.length
+            insert(@info[:FixupRecordOfs]+pgs[0], buf)
+            pgs = pgs.map{|v| v+d} #fixup sizes change
+            change(@info[:FixupPageOfs]+4*(pageId+1), pgs.pack("V*"))
+            #fix header
+            fixOffsets(@info[:FixupRecordOfs], d)
+            @info[:FixupSize]+=d
+            setInfo(:FixupSize, @info[:FixupSize])
+            @info[:LoaderSize]+=d
+            setInfo(:LoaderSize, @info[:LoaderSize])
+            @_tables = nil
+            mode(HOW_CHANGED)
+            rels = pageRelocs(pageId)
+        end
+
+
+        def readRelocs()
+            ret = {}
+            for i in 0..@info[:ModulePages]-1
+                pgofs = i * @info[:PageSize]
+                ret[pgofs] = pageRelocs(i)
+            end
+            return ret
+        end
+
+
         def fixOffsets(after, val)
             HDR_OFFSETS.each{|ofs|
                 next if @info[ofs]==0 or @info[ofs]<=after
@@ -89,11 +130,12 @@ module Resedit
             }
         end
 
+
         def addSegment(size)
             mode(HOW_CHANGED)
             psz = @info[:PageSize]
             tail = size % psz
-            pgs = size /@info[:PageSize] + (tail==0 ? 0 : 1) #/
+            pgs = size / psz + (tail==0 ? 0 : 1)
             tail = psz if tail==0
 
             #add new object
@@ -109,22 +151,18 @@ module Resedit
             pinfo = ''
             pgs.times{|i|
                 pid = @info[:ModulePages]+i+1
-                pinfo+=[pid<<16].pack("V")
+                pinfo+=[(pid*@info[:PageSize])<<4].pack("V")
             }
             insert(@info[:ObjectPageOfs]+@info[:ModulePages]*4, pinfo)
             fixOffsets(@info[:ObjectPageOfs], pinfo.length)
 
-            #add loading fixup
+            #add empty fixups
             fixofs = 4*@info[:ModulePages]
             fixval = getData(@info[:FixupPageOfs]+fixofs, 4).unpack("V")[0]
             pinfo = [fixval].pack("V") * pgs #end of fixup table <added pages> times
             insert(@info[:FixupPageOfs]+fixofs+4, pinfo)
             fixOffsets(@info[:FixupPageOfs], pinfo.length)
             setInfo(:FixupSize, @info[:FixupSize]+pinfo.length)
-
-            #fixup = [7,0,0, @info[:ObjectsInModule]+1,0].pack("CCvCv")
-            #insert(@info[:FixupRecordOfs]+fixval, fixup)
-            #fixOffsets(@info[:FixupRecordOfs], fixup.length)
 
             #change pages and tail, fix loader size
             setInfo(:ModulePages, @info[:ModulePages]+pgs)
@@ -136,13 +174,29 @@ module Resedit
             mode(HOW_CHANGED)
 
             return (@info[:ModulePages]-pgs)*@info[:PageSize]
-
         end
 
-        def headerSize(); @info[:DataPagesOfs]-@exe.mzSize end
 
-        def fileSize(); headerSize()+(@info[:ModulePages]-1)*@info[:PageSize]+@info[:PageShift] end
-        def entry; sprintf("0x%08X", @info[:EIP]) end
+        def addReloc(ofs, trg=nil)
+            mode(HOW_CHANGED)
+            trg = trg ? @exe.body.raw2addr(trg) : getData(ofs, 4)
+            obj = val = -1
+            @tables[:Objects].each_with_index{|o,i|
+                obj,val = [i+1,trg-o[1]] if o[1]<=trg && o[0]+o[1]>trg
+            }
+            raise "Target not found for offset: #{trg.to_i(trg)}" if obj==-1
+            psz = @info[:PageSize]
+            pgid = ofs / psz
+            #puts "Adding reloc #{ofs.to_s(16)} -> #{trg.to_s(16)} #{obj}:#{val.to_s(16)} #{pgid}"
+            ofs = ofs % psz
+            addPageReloc(pgid, ofs, obj, val)
+            addPageReloc(pgid+1, ofs-psz, obj, val) if ofs+4>psz
+            @_tables = nil
+            mode(HOW_CHANGED)
+            @exe.body.clearRelocs()
+            return true
+        end
+
 
         def print(what, how=nil)
             ret = super(what, how)
@@ -175,6 +229,8 @@ module Resedit
             end
             @sex
         end
+
+        def clearRelocs; @relocs=nil end
 
         def relocations()
             if !@relocs
