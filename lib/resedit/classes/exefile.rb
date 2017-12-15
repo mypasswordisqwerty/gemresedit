@@ -185,6 +185,25 @@ module Resedit
             end
         end
 
+        def textAt(pos, minlen, rexp=nil)
+            rexp = /^[[:print:][:space:]]+$/ if !rexp
+            sz = size
+            ln = [minlen+64, sz-pos].min
+            return nil if ln<minlen
+            data = getData(pos, ln)
+            prev = 0
+            while true
+                zpos = data.index("\x00")
+                return nil if zpos!=nil && zpos<minlen
+                data = data[0,zpos] if zpos!=nil
+                return nil if (data[prev..-1] =~ rexp) != 0
+                return data if zpos != nil
+                prev = data.length
+                return nil if pos+prev+64 > size
+                data += getData(pos+prev, 64)
+            end
+        end
+
         def addrFormatter(hofs); nil end
         def raw2addr(ofs); raise "Not implemented" end
         def addr2raw(addr); raise "Not implemented" end
@@ -192,7 +211,7 @@ module Resedit
         def removeAppend(); raise "Not Implemented" end
         def readRelocated(ofs, size); raise "NotImplemented" end
         def findRelocValue(value);  raise "NotImplemented" end
-        def findStrings; raise "NotImplemented" end
+        def findStrings(minsize); raise "NotImplemented" end
     end
 
     class ExeFile
@@ -376,20 +395,23 @@ module Resedit
         def relocfind(value, type=nil);
             value = getValue(value, type)
             res = @body.findRelocValue(value)
-            res.each{|p,v|
-                log("found at #{p.to_s(16)} relocs: #{v.map{|v| v.to_s(16)}}")
-            }
             log("relocs not found") if !res
+            return nil if !res
+            res.each{|k,v|
+                log("found at #{k.to_s(16)} relocs: #{v.map{|a| a.to_s(16)}}")
+            }
             return res
         end
 
         def stringfind(size=nil)
-            res = @body.findStrings()
-            log("Strings found:\n")
+            size = (size==nil || size=='') ? 3 : s2i(size)
+            res = @body.findStrings(size)
+            log("strings not found") if !res
+            return nil if !res
+            log("%d strings found:\n", res.length)
             res.each{|a|
-                logs("#{a[0]} at #{a[1].to_s(16)} relocs: #{a[2].map{|v| v.to_s(16)}}")
+                log("%s at %08X relocs: #{a[2].map{|v| v.to_s(16)}}", a[0], a[1])
             }
-            logd("strings not found") if !res
             return res
         end
     end

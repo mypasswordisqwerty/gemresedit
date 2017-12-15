@@ -79,7 +79,7 @@ module Resedit
                 next if fixOfs!=nil && (v[2]!=fixOfs || (v[1]==0 && fixVal>0xFF))
                 if fixOfs
                     buf = [fixObj, fixVal].pack("C" + v[1]==0x10 ? "V" : "v")
-                    change(@info[:FixupRecordOfs]+pos-1, buf)		#change fixup object & value
+                    change(@info[:FixupRecordOfs]+pos-1, buf)       #change fixup object & value
                     return true
                 end
                 next if v[2]<0
@@ -252,8 +252,9 @@ module Resedit
             return s[0]+ofs-s[1]
         end
 
-        def addr2raw(addr)
+        def addr2raw(addr, raiseOnError=true)
             s = sections.find{|s| s[0]<=addr && s[0]+s[2]>addr}
+            return nil if !s && !raiseOnError
             raise "Not virtual address #{addr.to_s(16)}" if !s
             return s[1]+addr-s[0]
         end
@@ -282,6 +283,56 @@ module Resedit
             insert(sz, "\x00"*(pos-sz))
             insert(pos, bytes)
             return [raw2addr(pos), pos]
+        end
+
+        def findRelocValue(value)
+            rel = relocations()
+            cnt = rel.length
+            ret={}
+            vlen = value.length
+            i = 1
+            fsz = size
+            rel.each{|o,r|
+                r.each{|k,v|
+                    raw = addr2raw(v, false)
+                    next if raw==nil || raw+vlen>fsz
+                    vl = getData(raw, vlen)
+                    next if vl!=value
+                    ret[v] = [] if !ret[v]
+                    ret[v] += [raw2addr(k)]
+                }
+            }
+            return nil if ret.length==0
+            return ret
+        end
+
+        def findStrings(minsize)
+            rel = relocations()
+            cnt = rel.length
+            fsz = size
+            proced = {}
+            i = 1
+            ret = []
+            rel.each{|o,r|
+                r.each{|k,v|
+                    if proced[v]!=nil
+                        ret[proced[v]][2]+=[raw2addr(k)] if proced[v]>=0
+                        next
+                    end
+                    raw = addr2raw(v, false)
+                    if raw==nil || raw+minsize>fsz
+                        proced[v] = -1
+                        next
+                    end
+                    txt = textAt(raw, minsize)
+                    if txt != nil
+                        ret+= [[txt, v, [raw2addr(k)]]]
+                    end
+                    proced[v] = txt==nil ? -1 : ret.length-1
+                }
+            }
+            return nil if ret.length==0
+            return ret
         end
 
     end

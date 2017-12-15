@@ -95,8 +95,8 @@ module Resedit
             res = valueHex(res.to_s(16), tp)
             raise str if res==nil
             return res
-        rescue Exception => e
-            raise "Bad value: "+e.to_s
+            #rescue Exception => e
+            #    raise "Bad value: "+e.to_s
         end
 
     end
