@@ -31,7 +31,7 @@ module Resedit
                 inc=1
                 if ntbl[val]
                     ntbl[val].each{|v,b|
-                        next if str.length < pos+v.length+1
+                        next if str.length < pos+v.length
                         if v==str[pos,v.length]
                             val=b.chr
                             inc=v.length
