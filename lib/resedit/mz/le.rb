@@ -290,7 +290,6 @@ module Resedit
             cnt = rel.length
             ret={}
             vlen = value.length
-            i = 1
             fsz = size
             rel.each{|o,r|
                 r.each{|k,v|
@@ -311,7 +310,6 @@ module Resedit
             cnt = rel.length
             fsz = size
             proced = {}
-            i = 1
             ret = []
             rel.each{|o,r|
                 r.each{|k,v|

@@ -36,10 +36,12 @@ module Resedit
                 @iface.text.load(inname, @iface.expectedLines())
                 StringIO.open("","w+b"){|stream|
                     @iface.pack(file, stream)
-                    stream.seek(0)
-                    File.open(@resname,"wb"){|out|
-                        out.write(stream.read())
-                    }
+                    if stream.length>0
+                        stream.seek(0)
+                        File.open(@resname,"wb"){|out|
+                            out.write(stream.read())
+                        }
+                    end
                 }
             }
         end

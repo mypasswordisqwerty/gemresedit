@@ -24,7 +24,7 @@ module Resedit
                 lines.each {|l|
                     l.force_encoding('utf-8')
                     f.write(l)
-                    f.write("\r\n")
+                    f.write("\n")
                 }
             }
         end
