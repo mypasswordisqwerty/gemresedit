@@ -21,7 +21,7 @@ module Resedit
             cid = 0
             while !f.eof?
                 s = f.read(2).unpack('A2')[0]
-                f.seek(-2, :CUR)
+                f.seek(-2, IO::SEEK_CUR)
                 #log("Loading part #{s} @ 0x#{f.tell.to_s(16)}")
                 raise "Unknown format #{s}" if !KNOWN_TYPES[s]
                 obj = KNOWN_TYPES[s].new(nil, @quiet)
