@@ -12,6 +12,7 @@ module Resedit
 
         def initialize(exe, file, size)
             super(exe, file, size)
+            @fsize = size
             @relocFix = 0
             @newOfs = false
             if @info[:RelocTableOffset]>=0x40
@@ -33,7 +34,7 @@ module Resedit
             cs = @info[:CS]
             sz = fileSize()-headerSize()
             codesize += PARA - codesize % PARA if codesize % PARA!=0
-            changeSize(sz + codesize + headerSize())
+            setFileSize(sz + codesize + headerSize())
             paras = codesize / PARA
             setInfo(:SS, ss+paras)
             setInfo(:CS, cs+paras)
@@ -44,7 +45,7 @@ module Resedit
             end
             mode(HOW_CHANGED)
             @relocFix = paras
-            MZEnv.instance().set(:relocFix, paras.to_s)
+            @exe.env.set(:relocFix, paras.to_s)
             return codesize
         end
 
@@ -98,8 +99,7 @@ module Resedit
             add = count - @info[:NumberOfRelocations]
             return if add<=0
             add -= freeSpace()/4
-            return if add<=0
-            addHeaderSize(add*4)
+            addHeaderSize(add*4) if add>0
             setInfo(:NumberOfRelocations, count)
             mode(HOW_CHANGED)
         end
@@ -109,14 +109,13 @@ module Resedit
             #check relocation exists
             for i in 0..@info[:NumberOfRelocations]-1
                 rel = getRelocation(i)
-                if @exe.body.seg2Linear(rel[0], rel[1]) == ofs
-                    return false
-                end
+                return false if @exe.body.seg2Linear(rel[0], rel[1]) == ofs
             end
             #add relocation
+            rid = @info[:NumberOfRelocations]
             setSpaceForRelocs(@info[:NumberOfRelocations]+1)
             val = @exe.body.linear2seg(ofs)
-            setRelocation(@info[:NumberOfRelocations], val)
+            setRelocation(rid, val)
             return true
         end
 
@@ -134,7 +133,7 @@ module Resedit
                 s = colStr(sprintf("%d (%X)", fsz,fsz), changed?(2, 4))
                 printf("mz file size: %s\treal file size: %d (0x%X)\n", s, @fsize, @fsize)
                 printf("header size: %s\n", colStr(hsz, changed?(8, 2)))
-                printf("code size: %s\n", colStr(fsz - hsz, @mz.body.changed?(0)))
+                printf("code size: %s\n", colStr(fsz - hsz, @exe.body.changed?(0)))
                 printf("reloc table size: %s\n", colStr(@info[:NumberOfRelocations] * 4, changed?(6, 2)))
                 printf("free space in header: before relocs 0x%X,  after relocs 0x%X\n", freeSpace(true), freeSpace())
                 printf("reloc fix: 0x%X\n", @relocFix)
