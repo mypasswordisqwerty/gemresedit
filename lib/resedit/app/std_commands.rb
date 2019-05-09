@@ -1,4 +1,5 @@
 require 'resedit/app/app_command'
+require 'resedit/mz/multiexe'
 
 module Resedit
 
@@ -97,6 +98,26 @@ module Resedit
         end
         def job(params)
             App::get().setShell(params['shell'])
+        end
+    end
+
+    class ExtendCommand < AppCommand
+        def initialize
+            super(['extend'])
+            addParam('file', 'MZ filepath')
+            addParam('size', 'extend size')
+        end
+
+        def job(params)
+            fname = params['file']
+            raise "File not found #{fname}" if !File.exists?(fname)
+            FileUtils.cp(fname, fname + '.bak') if !File.exist?(fname + '.bak')
+            size = Integer(params['size'])
+            mz = Resedit::Multiexe.new(fname+".bak")
+            mz.append("90"*size)
+            mz.print("header")
+            mz.save(fname,"final")
+            mz.close()
         end
     end
 

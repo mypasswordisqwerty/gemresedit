@@ -27,7 +27,7 @@ module Resedit
             @commands = []
             @commands += commands if commands
             @commands += [HelpCommand.new(), VersionCommand.new(), ExitCommand.new(),
-                        ScriptCommand.new(), MZCommand.new(), ShellCommand.new()]
+                        ScriptCommand.new(), MZCommand.new(), ExtendCommand.new(), ShellCommand.new()]
             @cmds={}
             @commands.each{|c|
                 c.names.each{|n|

@@ -20,7 +20,7 @@ module Resedit
                 "save"=>[method(:save), "save current file",{"filename" => "filename fir saving", "final"=>"don't save changes"}],
                 "close"=>[method(:close), "close file", {"file" => "path or id of file to close"}],
                 "print"=>[method(:info), "print info about mz objects", {"what" => "files/header/reloc/changes", "how" => "original/modified"}],
-                "append"=>[method(:append), "add bytes to current file", {"value" => "value", "type" => "value type", "where" => "append offset. default: above ss:sp"}],
+                "append"=>[method(:append), "add bytes to current file", {"value" => "value", "type" => "value type"}],
                 "replace"=>[method(:replace), "replace added bytes", {"value" => "value", "type"=>"value type"}],
                 "change"=>[method(:change), "change bytes at offset", {"ofs" => "data ofset", "value" => "value", "disp" => "code/file", "type"=>"value type"}],
                 "reloc"=>[method(:reloc), "add relocation", {"offset" => "reloc offset", "target" => "address reloc points to"}],
