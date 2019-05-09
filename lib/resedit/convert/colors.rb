@@ -54,13 +54,13 @@ module Resedit
         end
 
         def gradient(steps)
-            map = [@from]
-            c = steps-1.0
+            map = [@from.to_i]
+            c = steps
             for i in 1..steps-2
                 v = 1.0 * i / c
-                map += [ (@from*(1.0-v) + @to*v).to_i ]
+                map << (@from*(1.0-v) + @to*v).to_i
             end
-            map += [@to]
+            map << @to.to_i
             #puts map
             return map
         end

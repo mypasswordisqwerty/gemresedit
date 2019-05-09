@@ -3,7 +3,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |s|
   s.name        = 'resedit'
-  s.version     = "1.8.5"
+  s.version     = "1.8.6"
   s.summary     = "OG resource proc library!"
   s.authors     = ["bjfn"]
   s.files       = Dir['lib/**/*.rb']

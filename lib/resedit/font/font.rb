@@ -29,7 +29,7 @@ module Resedit
 
         def colorMap(val)
             @colmap = buildBppMap() if !@colmap
-            #@puts "#{val} = #{@colmap[val].to_s(16)}"
+            #puts "#{val} = #{@colmap[val].to_s(16)}"
             return @colmap[val]
         end
 

@@ -19,6 +19,7 @@ module Resedit
         def draw(image, x, y)
             for j in 0..@height-1
                 for i in 0..@width-1
+                    #p "#{@index} #{@width} #{@height} #{i} #{j} #{valueAt(i,j)}"
                     image.setPixel(x+i, y+j, @font.colorMap(valueAt(i,j))) if hasPixel(i,j)
                 end
             end
